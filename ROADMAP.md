@@ -52,7 +52,7 @@ O codinome aparece na tela "Sobre", no título da release no GitHub e no nome do
 - [x] **0.3** CI (GitHub Actions) com matriz **windows-latest + ubuntu-latest**: fmt, clippy, testes Rust e frontend, build do Tauri.
 - [x] **0.4** Estrutura de logs (`tracing`) e tipo de erro base (`thiserror`) no core.
   - 📚 `Result`, o operador `?`, `thiserror` vs `anyhow`.
-- [ ] **0.5** `ARCHITECTURE.md` curto descrevendo as camadas (core / tauri / frontend).
+- [x] **0.5** `ARCHITECTURE.md` curto descrevendo as camadas (core / tauri / frontend).
 - [ ] **0.6** Licença do projeto e aviso de "não oficial" no README.
   - 🛑 Licença (MIT, Apache-2.0, GPL...).
 - [ ] **0.7** **Design system base**: Tailwind + shadcn/ui configurados, **tokens de design** (cores, raios, espaçamento, tipografia) como variáveis CSS num único arquivo, tema claro/escuro, ícones Lucide e componentes-base (Button, Input, Dialog, Tabs, Progress, Toast, Select, Tooltip, ScrollArea). Página `/styleguide` (somente em dev) mostrando todos eles.
