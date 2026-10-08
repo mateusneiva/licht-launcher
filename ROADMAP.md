@@ -50,7 +50,7 @@ O codinome aparece na tela "Sobre", no título da release no GitHub e no nome do
   - 📚 Cargo workspace, crates lib vs bin.
 - [x] **0.2** Tooling: `rustfmt`, `clippy -D warnings`, Biome (lint e formatação), TypeScript estrito, Vitest + Testing Library.
 - [x] **0.3** CI (GitHub Actions) com matriz **windows-latest + ubuntu-latest**: fmt, clippy, testes Rust e frontend, build do Tauri.
-- [ ] **0.4** Estrutura de logs (`tracing`) e tipo de erro base (`thiserror`) no core.
+- [x] **0.4** Estrutura de logs (`tracing`) e tipo de erro base (`thiserror`) no core.
   - 📚 `Result`, o operador `?`, `thiserror` vs `anyhow`.
 - [ ] **0.5** `ARCHITECTURE.md` curto descrevendo as camadas (core / tauri / frontend).
 - [ ] **0.6** Licença do projeto e aviso de "não oficial" no README.

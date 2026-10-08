@@ -1,0 +1,33 @@
+use std::io;
+
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum CoreError {
+    #[error("I/O operation failed")]
+    Io(#[from] io::Error),
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+    use std::io;
+
+    #[test]
+    fn propagating_an_io_error_preserves_its_cause_and_category() {
+        fn operation() -> crate::Result<()> {
+            Err(io::Error::from(io::ErrorKind::PermissionDenied))?;
+            Ok(())
+        }
+
+        let error = operation().expect_err("the operation should fail");
+        let cause = error
+            .source()
+            .expect("the original cause should remain available")
+            .downcast_ref::<io::Error>()
+            .expect("the cause should remain an I/O error");
+
+        assert_eq!(cause.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(error.to_string(), "I/O operation failed");
+    }
+}
