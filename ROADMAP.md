@@ -48,7 +48,7 @@ O codinome aparece na tela "Sobre", no título da release no GitHub e no nome do
 - [ ] **0.1** Criar o workspace: `crates/licht-core` (lib), `src-tauri` (app), `src/` (frontend TS + Vite).
   - 🛑 Gerenciador de pacotes (pnpm) e estrutura de pastas do frontend (`src/components/ui`, `src/features/*`, `src/lib`).
   - 📚 Cargo workspace, crates lib vs bin.
-- [ ] **0.2** Tooling: `rustfmt`, `clippy -D warnings`, ESLint/Prettier, TypeScript estrito, Vitest + Testing Library.
+- [x] **0.2** Tooling: `rustfmt`, `clippy -D warnings`, Biome (lint e formatação), TypeScript estrito, Vitest + Testing Library.
 - [ ] **0.3** CI (GitHub Actions) com matriz **windows-latest + ubuntu-latest**: fmt, clippy, testes Rust e frontend, build do Tauri.
 - [ ] **0.4** Estrutura de logs (`tracing`) e tipo de erro base (`thiserror`) no core.
   - 📚 `Result`, o operador `?`, `thiserror` vs `anyhow`.
