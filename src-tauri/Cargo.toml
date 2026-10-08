@@ -1,0 +1,22 @@
+[package]
+name = "licht-launcher"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "licht_launcher"
+
+[[bin]]
+name = "licht"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "=2.7.1", features = [] }
+
+[dependencies]
+licht-core = { path = "../crates/licht-core" }
+tauri = { version = "=2.12.1", features = [] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
