@@ -36,6 +36,10 @@ pub enum CoreError {
     JavaProbe,
     #[error("Java {found} does not match required major version {required}")]
     JavaMajor { found: u32, required: u32 },
+    #[error("native archive could not be read")]
+    NativeArchive(#[source] zip::result::ZipError),
+    #[error("native archive path is invalid")]
+    NativePath,
 }
 
 #[cfg(test)]
