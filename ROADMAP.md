@@ -87,7 +87,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 **Goal:** download everything in a way that is fast, verified, and resumable.
 
-- [ ] **2.1** Single-file downloader: stream to disk, **SHA1 verification**, atomic write (`.part` → rename), retry with backoff.
+- [x] **2.1** Single-file downloader: stream to disk, **SHA1 verification**, atomic write (`.part` → rename), retry with backoff.
   - 📚 Buffer ownership, `Path`/`PathBuf`, `AsyncRead`.
 - [ ] **2.2** Parallel queue with a concurrency limit (e.g. 8-16) and progress aggregation.
   - 🛑 Default concurrency limit and retry policy.
