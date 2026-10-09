@@ -18,6 +18,8 @@ pub enum CoreError {
     AssetIndex(#[source] serde_json::Error),
     #[error("downloaded SHA1 does not match")]
     Sha1Mismatch { expected: String, actual: String },
+    #[error("downloaded SHA256 does not match")]
+    Sha256Mismatch { expected: String, actual: String },
     #[error("download needs at least one attempt")]
     DownloadAttempts,
     #[error("download concurrency must be at least 1")]
