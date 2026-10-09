@@ -107,7 +107,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 - [x] **3.1** Discover the required runtime (`javaVersion` from the version JSON).
 - [x] **3.2** Download and install the Mojang runtime (`java-runtime` manifest) or Adoptium/Temurin.
-  - 🛑 Which source to use by default and whether the user can point to their own Java.
+  - Decision: Mojang's runtime by default. The user can point to their own Java. A Java already installed on the machine is not selected on its own.
 - [x] **3.3** Detect already installed Javas (optional) and validate the version.
 
 **Done when:** asking for "1.21" and "1.8" results in two distinct, correct, usable runtimes.
@@ -121,19 +121,25 @@ The codename appears on the About screen, in the GitHub release title, and in th
 - [x] **4.1** Extraction of **natives** per platform into a temporary folder per run.
   - 📚 `zip`, I/O error handling.
 - [x] **4.2** **Classpath** assembly (`;` separator on Windows, `:` on Linux) and the full command: JVM arguments + game arguments, with variable substitution (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
-- [ ] **4.3** Process execution (`std::process`/`tokio::process`), stdout/stderr capture, end/crash detection.
-- [ ] **4.4** Test CLI (`licht`) in `licht-core` (example/binary) with **offline auth for development only**.
-  - 🛑 Whether offline mode stays restricted to dev builds or becomes a feature (implies legal/product decisions).
+- [x] **4.3** Process execution (`std::process`/`tokio::process`), stdout/stderr capture, end/crash detection.
+- [x] **4.4** CLI `licht` in `licht-core` launches a cached version with an offline account (chosen name). Offline is a product launch mode; official Microsoft login stays in phase 7. `licht launch` does not download. It only opens a version already in the cache.
+- [x] **4.5** Natives for current versions. 26.3 sets `-Djava.library.path` to `${natives_directory}/java`, and LWJGL 3.4 stores `lwjgl.dll` under `windows/x64/...` inside the jar. Extraction copies the shared library onto that path. 1.8.9 and 1.21 stay as they are: the DLL is at the jar root and `java.library.path` is the natives root.
+- [x] **4.6** `licht install --version <id>` installs one version. Mojang is the only source: download the version JSON, write `versions/{id}/{id}.json`, download the client, libraries and assets, and install the Mojang Java runtime named in the JSON. `--java` skips that runtime and uses the given executable. Files go to Licht's data directory, not the official `.minecraft` folder. The versions screen (5.3) calls the same function.
+- [x] **4.7** `licht versions` lists id and type from Mojang's manifest and does not install. `licht launch` can omit `--java` when that version's runtime is already in the cache.
 
 ### 🏁 Milestone 1: the game opens
 
 Install and open **vanilla 1.21.x** and **an old version (1.8.9)** on Windows and Linux, from the CLI.
+
+26.3 opens on Windows with `licht launch` and an offline name. `licht install --version 26.3` reads that version from Mojang and reuses the files already in the cache.
 
 ---
 
 ## Phase 5. Basic interface
 
 **Goal:** use all of this through a UI.
+
+Do not start 5.1 until its command contract is approved. The screen calls the same installer as `licht install`. The CLI can already list, install, and launch.
 
 - [ ] **5.1** Tauri commands (`list_versions`, `install_version`, `launch`), thin, only calling the core. Types shared with the frontend via `ts-rs`/`specta`.
   - 🛑 Contract (names and types) of commands and events.
