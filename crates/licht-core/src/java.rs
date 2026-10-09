@@ -290,18 +290,16 @@ fn place_link(link: &Path, target: &str) -> Result<()> {
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(relative, link)?;
-        return Ok(());
     }
     #[cfg(windows)]
     {
-        if std::os::windows::fs::symlink_file(relative, link).is_ok() {
-            return Ok(());
+        if std::os::windows::fs::symlink_file(relative, link).is_err() {
+            tracing::warn!("Java runtime symlink was copied because the link could not be created");
+            let Some(parent) = link.parent() else {
+                return Err(CoreError::CachePath);
+            };
+            std::fs::copy(parent.join(relative), link)?;
         }
-        tracing::warn!("Java runtime symlink was copied because the link could not be created");
-        let Some(parent) = link.parent() else {
-            return Err(CoreError::CachePath);
-        };
-        std::fs::copy(parent.join(relative), link)?;
     }
     Ok(())
 }
