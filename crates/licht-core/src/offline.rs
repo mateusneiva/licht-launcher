@@ -102,7 +102,7 @@ pub fn prepare_offline_launch(
     account: &OfflineAccount,
     game_directory: &Path,
 ) -> Result<Vec<String>> {
-    let natives_directory = create_natives_directory()?;
+    let natives_directory = create_natives_directory(cache, version_id, environment)?;
     extract_natives(cache, version, environment, &natives_directory)?;
 
     let mut values = BTreeMap::new();

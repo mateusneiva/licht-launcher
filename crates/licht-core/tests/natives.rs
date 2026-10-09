@@ -192,13 +192,27 @@ fn a_path_outside_the_destination_is_rejected() {
 }
 
 #[test]
-fn each_run_gets_its_own_directory() {
-    let first = create_natives_directory().expect("first");
-    let second = create_natives_directory().expect("second");
-    assert_ne!(first, second);
-    assert!(first.starts_with(std::env::temp_dir()));
-    assert!(first.is_dir());
-    assert!(second.is_dir());
+fn natives_land_under_the_version_and_platform() {
+    let root = std::env::temp_dir().join(format!("licht-natives-home-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let cache = SharedCache::at(&root);
+    let windows_dir = create_natives_directory(&cache, "1.5.2", &windows()).expect("windows");
+    let linux_dir =
+        create_natives_directory(&cache, "1.5.2", &environment(OsName::Linux, Arch::X86_64))
+            .expect("linux");
+
+    assert_eq!(
+        windows_dir,
+        root.join("natives").join("1.5.2").join("windows-x64")
+    );
+    assert_eq!(linux_dir, root.join("natives").join("1.5.2").join("linux"));
+    assert_ne!(windows_dir, linux_dir);
+    assert!(windows_dir.is_dir());
+    assert!(linux_dir.is_dir());
+
+    let error = create_natives_directory(&cache, "..", &windows()).expect_err("parent id");
+    assert!(matches!(error, CoreError::CachePath));
+    let _ = std::fs::remove_dir_all(root);
 }
 
 fn paths(version: &Version, os: OsName, arch: Arch) -> Vec<String> {
