@@ -70,3 +70,11 @@ tests use Vitest, Testing Library, and jsdom.
 CI runs Biome checks, TypeScript typechecking, frontend tests, Rust formatting,
 Clippy, Rust tests, and a Tauri release build on Windows and Ubuntu. Automated
 builds and tests are separate from manual graphical validation.
+
+## Game directory
+
+Each version keeps its saves next to the data directory, in `instances/<id>`.
+Versions that start through LaunchWrapper use `instances/<id>/.minecraft` so the
+folder the client reads before `--gameDir` is the instance. The race, the other
+launchers, and this choice are recorded in
+[LAUNCHWRAPPER.md](LAUNCHWRAPPER.md).
