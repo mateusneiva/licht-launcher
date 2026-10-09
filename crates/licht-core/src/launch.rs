@@ -156,5 +156,17 @@ fn substitute(input: &str, values: &BTreeMap<String, String>, classpath: &str) -
         rest = after;
     }
     output.push_str(rest);
-    output
+    library_path_root(output, values)
+}
+
+/// 26.3 asks for `${natives_directory}/java`. The DLLs live in the version folder.
+fn library_path_root(value: String, values: &BTreeMap<String, String>) -> String {
+    let Some(natives) = values.get("natives_directory") else {
+        return value;
+    };
+    let prefix = format!("-Djava.library.path={natives}");
+    if value == format!("{prefix}/java") || value == format!("{prefix}\\java") {
+        return prefix;
+    }
+    value
 }

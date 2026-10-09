@@ -58,12 +58,11 @@ impl SharedCache {
             .join(format!("{name}.json")))
     }
 
-    pub fn natives_dir(&self, version_id: &str, platform: &str) -> Result<PathBuf> {
+    pub fn natives_dir(&self, version_id: &str) -> Result<PathBuf> {
         Ok(self
             .root
             .join("natives")
-            .join(single_component(version_id)?)
-            .join(single_component(platform)?))
+            .join(single_component(version_id)?))
     }
 
     pub fn library(&self, artifact_path: &str) -> Result<PathBuf> {

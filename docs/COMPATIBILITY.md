@@ -69,19 +69,18 @@ Current libraries put `natives-windows` in the Maven name. That jar is extracted
 and left off the classpath. The plain name is 64-bit;
 `natives-windows-x86` and `natives-windows-arm64` are other machines.
 
-26.x (LWJGL 3.4) stores `lwjgl.dll` under `windows/x64` inside the jar, and the
-JVM flag is `-Djava.library.path=${natives_directory}/java`. The core copies the
-shared library onto that directory. 1.8.9 and 1.21 keep the library at the
-natives root, because their flag is `${natives_directory}` with no suffix.
+26.x (LWJGL 3.4) stores `lwjgl.dll` under `windows/x64` inside the jar. Extraction
+puts that DLL in the version folder. The JVM flag `${natives_directory}/java`
+is launched as the version folder, where the DLL sits. 1.8.9 and 1.21 already
+store the library at the jar root.
 
 Extracted natives stay in the data directory, not in a temporary folder:
 
-`natives/<version id>/<platform>`
+`natives/<version id>`
 
-`<platform>` is the same name the Java runtime uses: `windows-x64`,
-`windows-x86`, `linux`, `linux-i386`, `mac-os`. Linux x64 is `linux`, matching
-Mojang's runtime index. A version id of empty, `.`, or `..` is rejected. A
-second launch extracts over the same folder.
+The binaries for this machine sit in that folder. A version id of empty, `.`,
+or `..` is rejected. A second launch extracts over the same folder. Only the
+current operating system and architecture are downloaded.
 
 ## Java
 
