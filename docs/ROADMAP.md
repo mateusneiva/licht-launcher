@@ -4,7 +4,7 @@ Unofficial Minecraft: Java Edition launcher for **Windows and Linux**, built wit
 
 **Frontend stack:** React + TypeScript + Vite, Tailwind CSS, shadcn/ui (Radix UI), Lucide (icons), TanStack Router (file-based routes, hash history), Vitest + Testing Library (tests). Planned, not installed yet: TanStack Query (calls to Rust), Zustand (global state), TanStack Virtual (large lists).
 
-> **How to use:** always ask for **one item at a time** ("do item 3.2"). Flow for each item: **plan → approval → implementation → PR → review**. Follow `CLAUDE.md`.
+> **How to use:** always ask for **one item at a time** ("do item 3.2"). Flow for each item: **plan → approval → implementation → PR → review**. Follow `AGENTS.md`.
 
 Legend: `[ ]` pending · `[x]` done · 🛑 = decision that requires explicit approval before coding · 📚 = Rust concepts that show up
 
@@ -12,30 +12,30 @@ Legend: `[ ]` pending · `[x]` done · 🛑 = decision that requires explicit ap
 
 ## Identity and conventions
 
-| Item | Value |
-|---|---|
-| Display name | **Licht Launcher** (*Licht* = "light" in German; adopted pronunciation: "líkt") |
-| Repository / packages | `licht-launcher` |
-| Binary / command | `licht` |
-| Core crate | `licht-core` |
-| Symbol (logo) | a lily made of light |
-| Required notice | "Unofficial project, not affiliated with Mojang Studios or Microsoft" |
+| Item                  | Value                                                                           |
+| --------------------- | ------------------------------------------------------------------------------- |
+| Display name          | **Licht Launcher** (_Licht_ = "light" in German; adopted pronunciation: "líkt") |
+| Repository / packages | `licht-launcher`                                                                |
+| Binary / command      | `licht`                                                                         |
+| Core crate            | `licht-core`                                                                    |
+| Symbol (logo)         | a lily made of light                                                            |
+| Required notice       | "Unofficial project, not affiliated with Mojang Studios or Microsoft"           |
 
-> 🛑 Before item 0.1: confirm the domain (e.g. `licht.app`, `getlicht.com`, or a `.com.br` at registro.br) and the app *bundle identifier* (e.g. `app.licht.launcher`).
+> 🛑 Before item 0.1: confirm the domain (e.g. `licht.app`, `getlicht.com`, or a `.com.br` at registro.br) and the app _bundle identifier_ (e.g. `app.licht.launcher`).
 
 ### Version codenames
 
 Each `0.x` release gets the name of a flower, in German, in this order:
 
-| Version | Codename | Meaning |
-|---|---|---|
-| 0.1 | **Lilie** | lily |
-| 0.2 | **Iris** | iris |
-| 0.3 | **Rose** | rose |
-| 0.4 | **Immergrün** | periwinkle |
-| 0.5 | **Anemone** | anemone |
-| 0.6 | **Narzisse** | daffodil |
-| 0.7 | **Edelweiß** | edelweiss |
+| Version | Codename      | Meaning    |
+| ------- | ------------- | ---------- |
+| 0.1     | **Lilie**     | lily       |
+| 0.2     | **Iris**      | iris       |
+| 0.3     | **Rose**      | rose       |
+| 0.4     | **Immergrün** | periwinkle |
+| 0.5     | **Anemone**   | anemone    |
+| 0.6     | **Narzisse**  | daffodil   |
+| 0.7     | **Edelweiß**  | edelweiss  |
 
 The codename appears on the About screen, in the GitHub release title, and in the installer name (e.g. `Licht-Launcher-0.1.0-Lilie`). From 0.8 on, the list continues (🛑 define together).
 
@@ -107,7 +107,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 - [x] **3.1** Discover the required runtime (`javaVersion` from the version JSON).
 - [x] **3.2** Download and install the Mojang runtime (`java-runtime` manifest) or Adoptium/Temurin.
-  - Decision: Mojang's runtime by default. The user can point to their own Java. A Java already installed on the machine is not selected on its own.
+  - Decision: Eclipse Temurin by default, JRE when Adoptium publishes one, otherwise the JDK. The major version comes from `javaVersion.majorVersion`, or from the version id when that field is absent. `--java` uses the given executable. A Java already installed on the machine is not selected on its own.
 - [x] **3.3** Detect already installed Javas (optional) and validate the version.
 
 **Done when:** asking for "1.21" and "1.8" results in two distinct, correct, usable runtimes.
@@ -118,20 +118,24 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 **Goal:** open Minecraft.
 
-- [x] **4.1** Extraction of **natives** per platform into a temporary folder per run.
+- [x] **4.1** Extraction of **natives** per platform into `natives/<version id>` in the data directory. A later launch extracts over the same folder.
   - 📚 `zip`, I/O error handling.
 - [x] **4.2** **Classpath** assembly (`;` separator on Windows, `:` on Linux) and the full command: JVM arguments + game arguments, with variable substitution (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
 - [x] **4.3** Process execution (`std::process`/`tokio::process`), stdout/stderr capture, end/crash detection.
 - [x] **4.4** CLI `licht` in `licht-core` launches a cached version with an offline account (chosen name). Offline is a product launch mode; official Microsoft login stays in phase 7. `licht launch` does not download. It only opens a version already in the cache.
-- [x] **4.5** Natives for current versions. 26.3 sets `-Djava.library.path` to `${natives_directory}/java`, and LWJGL 3.4 stores `lwjgl.dll` under `windows/x64/...` inside the jar. Extraction copies the shared library onto that path. 1.8.9 and 1.21 stay as they are: the DLL is at the jar root and `java.library.path` is the natives root.
-- [x] **4.6** `licht install --version <id>` installs one version. Mojang is the only source: download the version JSON, write `versions/{id}/{id}.json`, download the client, libraries and assets, and install the Mojang Java runtime named in the JSON. `--java` skips that runtime and uses the given executable. Files go to Licht's data directory, not the official `.minecraft` folder. The versions screen (5.3) calls the same function.
+- [x] **4.5** Natives for current versions. 26.3 sets `-Djava.library.path` to `${natives_directory}/java`, and LWJGL 3.4 stores `lwjgl.dll` under `windows/x64/...` inside the jar. Extraction flattens that DLL into `natives/<id>`, and the launch rewrites the flag to that folder. Older versions already store the library at the jar root.
+- [x] **4.6** `licht install --version <id>` installs one version. Mojang is the only source: download the version JSON, write `versions/{id}/{id}.json`, download the client, libraries and assets, and install the Temurin runtime for that version. `--java` skips Temurin and uses the given executable. Files go to Licht's data directory, not the official `.minecraft` folder. The versions screen (5.3) calls the same function.
 - [x] **4.7** `licht versions` lists id and type from Mojang's manifest and does not install. `licht launch` can omit `--java` when that version's runtime is already in the cache.
 
 ### 🏁 Milestone 1: the game opens
 
 Install and open **vanilla 1.21.x** and **an old version (1.8.9)** on Windows and Linux, from the CLI.
 
-26.3 opens on Windows with `licht launch` and an offline name. `licht install --version 26.3` reads that version from Mojang and reuses the files already in the cache.
+Reached on Windows, from `licht`, with an offline name: 26.3, 1.20.1, 1.12.2, 1.8.9, 1.7.2, and 1.5.2 opened. 1.7.2 entered a world and exited 0. Linux has not been launched in this pass.
+
+Also in place, beyond the original checklist: one `instances/<id>` folder per version (not the phase 6 profile model), install progress in megabytes, natives limited to this machine, and legacy sounds copied to the names old clients open. Details are in [COMPATIBILITY.md](COMPATIBILITY.md) and [LAUNCHWRAPPER.md](core/LAUNCHWRAPPER.md).
+
+Still open before the interface: `${auth_session}` stays literal on 1.5.2. There is no account, no settings screen, and no Tauri command.
 
 ---
 

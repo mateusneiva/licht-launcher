@@ -2,11 +2,12 @@
 
 Licht Launcher has to launch every version the Mojang manifest publishes. This
 file records the differences that change how a launch is built. It does not
-redistribute game files.
+redistribute game files. The mechanism for each difference is in `docs/core`.
 
 Sources: the [client.json](https://minecraft.wiki/w/Client.json) page on
 minecraft.wiki, the [Java update tutorial](https://minecraft.wiki/w/Tutorial:Update_Java)
-on the same wiki, and local launches of 26.3, 1.21.11, 1.8.9, and 1.5.2.
+on the same wiki, and Windows launches of 26.3, 1.21.11, 1.20.1, 1.12.2,
+1.8.9, 1.7.2, and 1.5.2.
 
 A gap listed at the end is not implemented yet. Each one is a later change, one
 at a time.
@@ -24,7 +25,9 @@ Before 1.13 the JSON does not carry JVM arguments. The core inserts
 from the JSON and the core evaluates them, including rule-gated entries.
 
 `mainClass` is `net.minecraft.launchwrapper.Launch` through 1.5.2, except the
-snapshot `13w16b`. Later versions use `net.minecraft.client.main.Main`.
+snapshot `13w16b`. Later versions use `net.minecraft.client.main.Main`. The
+`.minecraft` folder for LaunchWrapper is in
+[LAUNCHWRAPPER.md](core/LAUNCHWRAPPER.md).
 
 ## Offline account
 
@@ -36,114 +39,105 @@ written without hyphens. The access token is `0`.
 `${auth_session}` is `0:<uuid>`.
 
 From 1.7 onward the JSON uses `${auth_access_token}`, `${auth_uuid}`,
-`${user_type}`, and `${user_properties}`. Current versions also mention
-`${auth_xuid}` and `${clientid}`; both are empty for an offline account.
-`${user_type}` is `legacy` and `${user_properties}` is `{}`.
+`${user_type}`, and `${user_properties}`. The installed 1.7.2 arguments are
+`--username ${auth_player_name} --version ${version_name} --gameDir ${game_directory} --assetsDir ${game_assets} --uuid ${auth_uuid} --accessToken ${auth_access_token}`.
+Current versions also mention `${auth_xuid}` and `${clientid}`; both are empty
+for an offline account. `${user_type}` is `legacy` and `${user_properties}` is
+`{}`.
 
-The core fills the modern names, `auth_player_name`, and `auth_uuid`. It does
-not fill `auth_session` yet (see the gaps).
+The core fills the modern names, `auth_player_name`, and `auth_uuid`. It leaves
+`${auth_session}` literal (see the gaps).
 
 ## Assets
 
 The `pre-1.6` index sets `map_to_resources`. That covers classic, alpha, beta,
-and releases through 1.5.2, plus snapshots through `13w23b`. At launch the
-hashed objects are copied to `<game directory>/resources/<logical path>`, and
-`${game_assets}` is that `resources` folder. A file that already has the size
-from the index is left in place. A logical path of empty, `.`, or `..` is
-rejected.
+and releases through 1.5.2, plus snapshots through `13w23b`. Launch copies the
+hashed objects to `<game directory>/resources` and sets `${game_assets}` there.
 
-The `legacy` index sets `virtual`. That covers `13w24a` through 1.7.2. The same
-copy goes to `<cache>/assets/virtual/<index id>`, and `${game_assets}` is that
-folder. An index with both flags gets both copies, and the virtual folder is
-the one passed to the game.
+The `legacy` index sets `virtual`. That covers `13w24a` through 1.7.2. The copy
+goes to `<cache>/assets/virtual/legacy`, and that folder is `${game_assets}`.
 
 From 1.7.3 on, objects stay hashed under `assets/objects` and the game receives
-`${assets_root}` and `${assets_index_name}`. Those indexes do not ask for a
-copy. 1.8.9 and 1.21.11 are in this group.
+`${assets_root}` and `${assets_index_name}`. 1.8.9, 1.12.2, 1.20.1, and 26.3
+are in this group.
+
+The missing-sound failure and the copy rules are in
+[LEGACY-ASSETS.md](core/LEGACY-ASSETS.md).
 
 ## Natives
 
 Legacy libraries name the jar in `natives`, often `natives-windows-${arch}`.
-`${arch}` is `64` or `32`. The classifier jar is downloaded and extracted. The
-plain library jar stays on the classpath.
+`${arch}` is `64` or `32`. The classifier jar is extracted. The plain library
+jar stays on the classpath.
 
 Current libraries put `natives-windows` in the Maven name. That jar is extracted
-and left off the classpath. The plain name is 64-bit;
-`natives-windows-x86` and `natives-windows-arm64` are other machines.
+and left off the classpath. The plain name is 64-bit. `natives-windows-x86` is
+32-bit. Other classifiers belong to other machines.
 
-26.x (LWJGL 3.4) stores `lwjgl.dll` under `windows/x64` inside the jar. Extraction
-puts that DLL in the version folder. The JVM flag `${natives_directory}/java`
-is launched as the version folder, where the DLL sits. 1.8.9 and 1.21 already
+26.x stores `lwjgl.dll` under `windows/x64` inside the jar and asks for
+`${natives_directory}/java`. Extraction flattens the DLL into
+`natives/<version id>`, and the launch passes that folder. 1.8.9 and 1.21
 store the library at the jar root.
 
-Extracted natives stay in the data directory, not in a temporary folder:
-
-`natives/<version id>`
-
-The binaries for this machine sit in that folder. A version id of empty, `.`,
-or `..` is rejected. A second launch extracts over the same folder. Only the
-current operating system and architecture are downloaded.
+Which jar is downloaded, and what the extract keeps, is in
+[NATIVES.md](core/NATIVES.md).
 
 ## Java
 
-The version JSON decides the runtime through `javaVersion.component` and
-`javaVersion.majorVersion`. The runtime is the one Mojang publishes for that
-component. A Java already installed on the machine is not selected. Passing
-`--java` skips the Mojang runtime.
+`javaVersion.majorVersion` wins. Without that field, the id decides: 1.17 is
+16, 1.18 through 1.20.4 is 17, 1.20.5 and newer is 21, and every other id is 8.
+The installed runtime is Eclipse Temurin for that major, a JRE when Adoptium
+publishes one. `--java` skips Temurin. A Java already installed on the machine
+is not selected.
+
+Installed JSONs from the Windows checks:
+
+| Version                     | Major | Component in the JSON  |
+| --------------------------- | ----- | ---------------------- |
+| 1.5.2, 1.7.2, 1.8.9, 1.12.2 | 8     | `jre-legacy`           |
+| 1.20.1                      | 17    | `java-runtime-gamma`   |
+| 1.21.11                     | 21    | `java-runtime-delta`   |
+| 26.3                        | 25    | `java-runtime-epsilon` |
 
 The wiki's minimums, for checking a JSON that looks wrong:
 
-- Java 8 through 1.16.5 (`jre-legacy` on 1.8.9 and 1.5.2)
+- Java 8 through 1.16.5
 - Java 16 on 1.17
 - Java 17 from 1.18 through 1.20.4
-- Java 21 from 1.20.5 through 1.21.11 (`java-runtime-delta` on 1.21.11)
-- Java 25 from 26.1 onward (`java-runtime-epsilon` on 26.3)
+- Java 21 from 1.20.5 through 1.21.11
+- Java 25 from 26.1 onward
 
 Java 8 reports Windows 11 as "Windows 8.1 (6.3)". That string is not a launch
-failure.
+failure. Download, folder names, and `--java` are in
+[RUNTIME.md](core/RUNTIME.md).
 
 ## Log
 
-Old clients print the system code page. On this Windows machine that is
-Windows-1252, so a line such as the Portuguese word for "information" shows up
-in the 1.5.2 log. The launcher keeps that line and does not treat the byte as
-a failed launch.
+Java 18 and newer are read as UTF-8. An older Java on this Windows machine is
+read as Windows-1252, so `INFORMAÇÕES` in the 1.5.2 log stays intact. A strict
+UTF-8 read used to fail the launch on that line. Page 65001 stays UTF-8. Any
+other page, and Linux, is lossy UTF-8. A byte that does not fit becomes
+U+FFFD, and the process keeps running.
 
-Java 18 and newer are read as UTF-8. An older Java is read as the system code
-page: Windows-1252 on code page 1252, UTF-8 on code page 65001, and lossy UTF-8
-for any other page. Linux uses lossy UTF-8 for the older Java. A byte that
-does not fit the chosen codec becomes U+FFFD, and the process keeps running.
-One codec covers the whole process, so a UTF-8 line from Java 17 can show a
-wrong accent.
+The failure and the reader are in [LOG.md](core/LOG.md).
 
 ## Version ids
 
 Classic releases are `1.x`. Since 2026 the id is `year.week` (`26.1`, `26.3`).
-Both are ordinary manifest ids. Nothing in the launch path special-cases the
-shape.
+Both are ordinary manifest ids, along with `snapshot`, `old_beta`, and
+`old_alpha`. Nothing in install or launch inspects the shape. The manifest,
+the SHA1 check, and `versions/<id>/<id>.json` are in
+[VERSIONS.md](core/VERSIONS.md).
 
 ## Known gaps
 
-These are not fixed in the documentation change.
+These are not implemented.
 
-**1.5.2 reads the wrong options file.** LaunchWrapper 1.5 sets the game
-directory by rewriting `Minecraft.main` so the assignment runs on the `return`.
-`applet.start()` has already started the client thread. That thread can call
-the data-directory lookup first. On Windows the fallback is
-`%APPDATA%\.minecraft`. On Linux it is `~/.minecraft`. A modern `options.txt`
-there has `lang:en_us` and key lines such as `key_key.attack:key.mouse.left`.
-1.5.2 skips the key lines (`Skipping bad option`) and then asks the jar for
-`/lang/en_us.lang`. The jar entry is `lang/en_US.lang`. The zip name is
-case-sensitive, `getResourceAsStream` returns null, and
-`InputStreamReader` throws `NullPointerException` (`bp.a` line 64, called from
-line 100). The crash report is "Failed to start game".
+**Legacy session.** Where the arguments still name `${auth_session}`, Licht
+leaves that token literal. The installed 1.5.2 JSON is one of those. The value
+the client expects is `0:<uuid>`.
 
-`Is Modded: Jar signature invalidated` is LaunchWrapper rewriting
-`Minecraft.class`. It is not this crash.
-
-**Legacy session.** `${auth_session}` is not filled. Pre-1.6 and 1.6 through
-1.7.2 arguments still contain that name.
-
-**Non-UTF-8 log lines on a code page other than 1252 or 65001.** Those bytes
-are kept with U+FFFD. Java 17 and older still use one codec for the whole
-process, so a UTF-8 accent in that log can be misread.
+**One codec for Java 17 and older.** A UTF-8 accent in that log can be
+misread. A code page other than 1252 or 65001 is not decoded as that page.
+Those bytes become U+FFFD when they are not valid UTF-8. See
+[LOG.md](core/LOG.md).

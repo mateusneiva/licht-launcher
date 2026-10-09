@@ -7,12 +7,36 @@ built with Tauri v2, React, TypeScript, and Rust.
 
 ## Project status
 
-Early development. The foundation phase is complete: an empty desktop window, a
-standalone Rust core, structured logging, typed core errors, the design system,
-TanStack Router with file routes under `src/routes`, frontend tests, and
-Windows/Ubuntu CI. The style guide is at `/#/styleguide` when
-`VITE_SHOW_STYLEGUIDE=true` (see `.env.example`). Game installation, game
-launching, and account authentication are planned in the [roadmap](docs/ROADMAP.md).
+Milestone 1 is done from the command line. `licht` can list Mojang's manifest,
+install a version, and launch it with an offline name. The desktop window is
+still the foundation shell: it does not install or launch. Phase 5, the
+interface, has not started. Its command contract has to be approved first.
+See the [roadmap](docs/ROADMAP.md).
+
+What a launch does today:
+
+- Game files come from Mojang and stay in Licht's data directory, not in the
+  official `.minecraft` folder. The default Java is Eclipse Temurin. `--java`
+  uses another executable. A Java already on the machine is not picked by itself.
+- Each version gets `instances/<id>` next to the data directory. LaunchWrapper
+  versions (through 1.5.2) keep the game in `instances/<id>/.minecraft`.
+- Natives are extracted once per version into `natives/<id>`.
+- Versions through 1.7.2 get their sounds copied to the names those clients
+  open. Newer versions read the hashed asset objects directly.
+- The game log is read as UTF-8 on Java 18 and newer, and as the system code
+  page on older Java. A bad byte does not kill the process.
+
+Still open: `${auth_session}` is not filled, and there is no Microsoft login
+(phase 7). The live checks so far were on Windows.
+
+```sh
+cargo run -p licht-core --bin licht -- versions
+cargo run -p licht-core --bin licht -- install --version 1.20.1
+cargo run -p licht-core --bin licht -- launch --version 1.20.1 --username Player
+```
+
+`launch` does not download. `install` does. `--game-dir` replaces the instance
+root. `--cache` replaces the data directory. `--java` skips Temurin.
 
 ## Prerequisites
 
@@ -61,6 +85,12 @@ Ubuntu. `pnpm lint` checks formatting and imports as well as lint rules.
 - [Architecture](docs/ARCHITECTURE.md): layer responsibilities and project boundaries.
 - [Roadmap](docs/ROADMAP.md): implementation stages and decisions requiring approval.
 - [Compatibility](docs/COMPATIBILITY.md): version differences the launcher has to cover.
+- [Versions](docs/core/VERSIONS.md): the Mojang manifest, the four types, and where each version JSON is stored.
+- [LaunchWrapper](docs/core/LAUNCHWRAPPER.md): why versions through 1.5.2 use a `.minecraft` folder.
+- [Legacy assets](docs/core/LEGACY-ASSETS.md): why versions through 1.7.2 need a sound copy at launch.
+- [Runtime](docs/core/RUNTIME.md): Eclipse Temurin, the major each version asks for, and `--java`.
+- [Natives](docs/core/NATIVES.md): which native jar is downloaded, and where the binaries are extracted.
+- [Log](docs/core/LOG.md): why old versions were failing on a Windows-1252 line, and how the log is decoded.
 - [Project rules](AGENTS.md): development conventions.
 
 ## License
