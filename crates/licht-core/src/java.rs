@@ -8,8 +8,8 @@ use sha1::{Digest, Sha1};
 use tokio::sync::mpsc;
 
 use crate::{
-    Arch, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadProgress, DownloadTask, OsName,
-    Result, SharedCache, Version, download_all,
+    Arch, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadProgress, DownloadTask,
+    LaunchEnvironment, OsName, Result, SharedCache, Version, download_all,
 };
 
 pub const JAVA_RUNTIME_INDEX_URL: &str = "https://piston-meta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
@@ -327,6 +327,26 @@ enum Placed {
 }
 
 use Placed::{Executable, Link};
+
+pub fn installed_java(
+    cache: &SharedCache,
+    version: &Version,
+    environment: &LaunchEnvironment,
+) -> Result<PathBuf> {
+    let Some(runtime) = required_runtime(version) else {
+        return Err(CoreError::JavaRuntimeMissing);
+    };
+    let root = cache.runtime_dir(
+        &runtime.component,
+        runtime_platform(environment.os, environment.arch)?,
+    )?;
+    let path = java_executable(&root, environment.os);
+    if path.is_file() {
+        Ok(path)
+    } else {
+        Err(CoreError::JavaRuntimeMissing)
+    }
+}
 
 fn java_executable(root: &Path, os: OsName) -> PathBuf {
     match os {

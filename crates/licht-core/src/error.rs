@@ -40,6 +40,16 @@ pub enum CoreError {
     NativeArchive(#[source] zip::result::ZipError),
     #[error("native archive path is invalid")]
     NativePath,
+    #[error("game command is empty")]
+    GameCommand,
+    #[error("offline username is empty")]
+    OfflineName,
+    #[error("command arguments are incomplete")]
+    LaunchArgs,
+    #[error("version was not found")]
+    VersionMissing,
+    #[error("this system is not supported for launch")]
+    LaunchHost,
 }
 
 #[cfg(test)]
