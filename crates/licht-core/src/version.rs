@@ -171,7 +171,7 @@ pub enum OsName {
 }
 
 impl OsName {
-    fn mojang_name(self) -> &'static str {
+    pub(crate) fn mojang_name(self) -> &'static str {
         match self {
             Self::Windows => "windows",
             Self::Linux => "linux",

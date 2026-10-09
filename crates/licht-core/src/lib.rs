@@ -1,14 +1,23 @@
 //! Minecraft launcher core, independent of Tauri.
 
 mod asset_index;
+mod cache;
 mod download;
 mod error;
+mod install;
+mod java;
 mod version;
 mod version_manifest;
 
 pub use asset_index::{AssetIndexFile, AssetObject, fetch_asset_index, parse_asset_index};
-pub use download::{Retry, download_file};
+pub use cache::SharedCache;
+pub use download::{
+    DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadProgress, DownloadTask, Retry, download_all,
+    download_file,
+};
 pub use error::CoreError;
+pub use install::{ASSET_OBJECT_BASE, InstallPlan, install_version};
+pub use java::required_runtime;
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,

@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::TryStreamExt;
 use sha1::{Digest, Sha1};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::{Semaphore, mpsc};
 use tokio_util::io::StreamReader;
 use tracing::warn;
 
@@ -11,10 +13,31 @@ use crate::{CoreError, Result};
 
 const CHUNK_SIZE: usize = 64 * 1024;
 
+pub const DEFAULT_CONCURRENCY: usize = 8;
+
+pub const DEFAULT_RETRY: Retry = Retry {
+    attempts: 3,
+    initial_backoff: Duration::from_millis(200),
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Retry {
     pub attempts: u32,
     pub initial_backoff: Duration,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DownloadTask {
+    pub url: String,
+    pub destination: PathBuf,
+    pub sha1: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DownloadProgress {
+    pub finished: u32,
+    pub failed: u32,
+    pub total: u32,
 }
 
 pub async fn download_file(
@@ -45,6 +68,74 @@ pub async fn download_file(
                 attempt += 1;
             }
         }
+    }
+}
+
+pub async fn download_all(
+    client: &reqwest::Client,
+    tasks: &[DownloadTask],
+    concurrency: usize,
+    retry: Retry,
+    progress: mpsc::Sender<DownloadProgress>,
+) -> Result<()> {
+    if tasks.is_empty() {
+        return Ok(());
+    }
+    if concurrency == 0 {
+        return Err(CoreError::DownloadConcurrency);
+    }
+
+    let total = u32::try_from(tasks.len())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "too many downloads"))?;
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    let (results, mut incoming) = mpsc::channel(tasks.len());
+
+    for task in tasks {
+        let results = results.clone();
+        let client = client.clone();
+        let semaphore = Arc::clone(&semaphore);
+        let url = task.url.clone();
+        let destination = task.destination.clone();
+        let sha1 = task.sha1.clone();
+        tokio::spawn(async move {
+            let result = async {
+                let _permit = semaphore
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| std::io::Error::other("download queue closed"))?;
+                download_file(&client, &url, &destination, &sha1, retry).await
+            }
+            .await;
+            let _ = results.send(result).await;
+        });
+    }
+    drop(results);
+
+    let mut finished = 0;
+    let mut failed = 0;
+    let mut first_error = None;
+    while let Some(result) = incoming.recv().await {
+        match result {
+            Ok(()) => finished += 1,
+            Err(error) => {
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+                failed += 1;
+            }
+        }
+        let _ = progress
+            .send(DownloadProgress {
+                finished,
+                failed,
+                total,
+            })
+            .await;
+    }
+
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(()),
     }
 }
 
