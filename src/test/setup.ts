@@ -10,6 +10,28 @@ declare module "vitest" {
 
 expect.extend(matchers);
 
+class ResizeObserverStub implements ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+globalThis.ResizeObserver = ResizeObserverStub;
+
+Element.prototype.scrollIntoView = () => {};
+
+if (typeof HTMLElement.prototype.hasPointerCapture !== "function") {
+  HTMLElement.prototype.hasPointerCapture = () => false;
+}
+
+if (typeof HTMLElement.prototype.setPointerCapture !== "function") {
+  HTMLElement.prototype.setPointerCapture = () => {};
+}
+
+if (typeof HTMLElement.prototype.releasePointerCapture !== "function") {
+  HTMLElement.prototype.releasePointerCapture = () => {};
+}
+
 afterEach(() => {
   cleanup();
 });

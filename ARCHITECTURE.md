@@ -17,9 +17,10 @@ The Cargo workspace contains `licht-core` and the `licht-launcher` application
 package. The application depends on the core through a local path dependency;
 its executable is `licht`.
 
-The current foundation opens an empty React frontend. The core exposes its base
-error type, and the application initializes logging. Domain operations and their
-Tauri commands are not implemented yet.
+The foundation phase is complete. It opens an empty React window, ships the
+design system, and routes the frontend with TanStack Router. The core exposes
+its base error type, and the application initializes logging. Domain operations
+and their Tauri commands are not implemented yet.
 
 ## Communication
 
@@ -38,15 +39,14 @@ pending.
 
 ## Frontend layout
 
+- `src/routes`: file-based route modules for TanStack Router. Screens stay in `src/features`; a route file only mounts them. The generated tree is `src/routeTree.gen.ts`, and it is committed so typechecking does not depend on a Vite build.
 - `src/components/ui`: shared design-system components using theme tokens.
 - `src/features`: screens and UI behavior grouped by feature.
 - `src/lib`: UI utilities and typed invocation wrappers.
 
-These folders are currently placeholders. Tailwind, shadcn/ui, Lucide, TanStack
-Query, Zustand, and TanStack Virtual belong to the planned frontend stack and
-have not been installed yet. Long lists will be virtualized, and screens will
-reuse the design system. The frontend runs in WebView2 on Windows and WebKitGTK
-on Linux.
+The router is installed. History is hash-based (`/#/` and `/#/styleguide`) because the Tauri window does not rewrite paths to `index.html`. The style guide route loads only when `VITE_SHOW_STYLEGUIDE=true`; otherwise it is not found. The template is `.env.example`. Interface copy is English.
+
+TanStack Query, Zustand, and TanStack Virtual are decided and have not been installed yet. Long lists will be virtualized, and screens will reuse the design system. The frontend runs in WebView2 on Windows and WebKitGTK on Linux.
 
 ## Errors and logging
 
