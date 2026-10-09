@@ -102,11 +102,17 @@ failure.
 
 ## Log
 
-Old clients print bytes that are not UTF-8 (Windows-1252). A line such as the
-Portuguese word for "information" shows up in the 1.5.2 log. The launcher must
-keep those bytes in the line and must not treat them as a failed launch.
+Old clients print the system code page. On this Windows machine that is
+Windows-1252, so a line such as the Portuguese word for "information" shows up
+in the 1.5.2 log. The launcher keeps that line and does not treat the byte as
+a failed launch.
 
-The reader still stops on the first non-UTF-8 byte. That abort is a gap.
+Java 18 and newer are read as UTF-8. An older Java is read as the system code
+page: Windows-1252 on code page 1252, UTF-8 on code page 65001, and lossy UTF-8
+for any other page. Linux uses lossy UTF-8 for the older Java. A byte that
+does not fit the chosen codec becomes U+FFFD, and the process keeps running.
+One codec covers the whole process, so a UTF-8 line from Java 17 can show a
+wrong accent.
 
 ## Version ids
 
@@ -137,5 +143,6 @@ line 100). The crash report is "Failed to start game".
 filled, and a `map_to_resources` or `virtual` index is not copied into the game
 directory.
 
-**Non-UTF-8 log lines.** The pipe reader requires UTF-8, so a 1.5.2 launch can
-be reported as a launcher I/O failure after the game has already started.
+**Non-UTF-8 log lines on a code page other than 1252 or 65001.** Those bytes
+are kept with U+FFFD. Java 17 and older still use one codec for the whole
+process, so a UTF-8 accent in that log can be misread.
