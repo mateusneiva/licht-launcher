@@ -6,6 +6,7 @@ use sha1::{Digest, Sha1};
 use tokio::sync::mpsc;
 
 use crate::download::DownloadProgress;
+use crate::natives::native_classifier;
 use crate::{
     AssetIndexFile, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadTask,
     JAVA_RUNTIME_INDEX_URL, JavaChoice, LaunchEnvironment, Result, SharedCache, Version,
@@ -256,13 +257,14 @@ fn download_tasks(cache: &SharedCache, plan: &InstallPlan<'_>) -> Result<Vec<Dow
         let Some(natives) = &library.natives else {
             continue;
         };
-        let Some(classifier_name) = natives.get(plan.environment.os.mojang_name()) else {
+        let Some(template) = natives.get(plan.environment.os.mojang_name()) else {
             continue;
         };
         let Some(classifiers) = &downloads.classifiers else {
             continue;
         };
-        let Some(artifact) = classifiers.get(classifier_name) else {
+        let classifier_name = native_classifier(template, plan.environment.arch);
+        let Some(artifact) = classifiers.get(&classifier_name) else {
             continue;
         };
         tasks.push(task_for_artifact(cache, artifact)?);
