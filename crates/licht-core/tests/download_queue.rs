@@ -26,20 +26,21 @@ async fn every_file_is_reported_when_the_queue_finishes() {
     let directory = temporary_directory("finished");
     let url = serve(ServeMode::Ok).await;
     let tasks = tasks(&directory, &url, 4);
-    let (progress, mut incoming) = mpsc::channel(4);
+    let (progress, mut incoming) = mpsc::channel(64);
 
     download_all(&client(), &tasks, 2, retry(1), progress)
         .await
         .expect("every download should succeed");
 
     let events = collect(&mut incoming).await;
-    assert_eq!(events.len(), 4);
     assert_eq!(
         events.last().copied(),
         Some(DownloadProgress {
             finished: 4,
             failed: 0,
             total: 4,
+            bytes_done: 4 * BODY.len() as u64,
+            bytes_total: 4 * BODY.len() as u64,
         })
     );
     for task in &tasks {
@@ -54,7 +55,7 @@ async fn the_concurrency_limit_caps_open_connections() {
     let gate = Arc::new(Gate::new());
     let url = serve(ServeMode::Hold(Arc::clone(&gate))).await;
     let tasks = tasks(&directory, &url, 4);
-    let (progress, _incoming) = mpsc::channel(4);
+    let (progress, _incoming) = mpsc::channel(64);
     let client = client();
 
     let queue =
@@ -86,8 +87,9 @@ async fn one_failure_is_reported_after_the_other_files_land() {
         url: format!("{url}/fail"),
         destination: directory.join("failed.jar"),
         sha1: SHA1.to_string(),
+        size: BODY.len() as u64,
     });
-    let (progress, mut incoming) = mpsc::channel(3);
+    let (progress, mut incoming) = mpsc::channel(64);
 
     let error = download_all(&client(), &tasks, 2, retry(1), progress)
         .await
@@ -101,6 +103,8 @@ async fn one_failure_is_reported_after_the_other_files_land() {
             finished: 2,
             failed: 1,
             total: 3,
+            bytes_done: 2 * BODY.len() as u64,
+            bytes_total: 3 * BODY.len() as u64,
         })
     );
     assert_eq!(std::fs::read(directory.join("0.jar")).expect("file"), BODY);
@@ -149,6 +153,7 @@ fn tasks(directory: &Path, url: &str, count: usize) -> Vec<DownloadTask> {
             url: url.to_string(),
             destination: directory.join(format!("{index}.jar")),
             sha1: SHA1.to_string(),
+            size: BODY.len() as u64,
         })
         .collect()
 }

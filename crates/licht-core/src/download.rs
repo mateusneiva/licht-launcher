@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use futures_util::TryStreamExt;
@@ -31,6 +32,8 @@ pub struct DownloadTask {
     pub url: String,
     pub destination: PathBuf,
     pub sha1: String,
+    /// Size published by Mojang. The progress total is the sum of these sizes.
+    pub size: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +41,8 @@ pub struct DownloadProgress {
     pub finished: u32,
     pub failed: u32,
     pub total: u32,
+    pub bytes_done: u64,
+    pub bytes_total: u64,
 }
 
 pub async fn download_file(
@@ -55,7 +60,7 @@ pub async fn download_file(
     let mut backoff = retry.initial_backoff;
     let mut attempt = 1;
     loop {
-        match write_verified_part(client, url, destination, &part, expected_sha1).await {
+        match write_verified_part(client, url, destination, &part, expected_sha1, None).await {
             Ok(()) => return Ok(()),
             Err(error) => {
                 remove_part(&part).await?;
@@ -87,6 +92,15 @@ pub async fn download_all(
 
     let total = u32::try_from(tasks.len())
         .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "too many downloads"))?;
+    let bytes = Arc::new(ByteProgress {
+        done: AtomicU64::new(0),
+        total: tasks
+            .iter()
+            .fold(0, |sum, task| sum.saturating_add(task.size)),
+        files: total,
+        sink: progress.clone(),
+    });
+    let _ = bytes.sink.try_send(bytes.snapshot(0, 0));
     let semaphore = Arc::new(Semaphore::new(concurrency));
     let (results, mut incoming) = mpsc::channel(tasks.len());
 
@@ -94,6 +108,7 @@ pub async fn download_all(
         let results = results.clone();
         let client = client.clone();
         let semaphore = Arc::clone(&semaphore);
+        let bytes = Arc::clone(&bytes);
         let url = task.url.clone();
         let destination = task.destination.clone();
         let sha1 = task.sha1.clone();
@@ -103,7 +118,33 @@ pub async fn download_all(
                     .acquire_owned()
                     .await
                     .map_err(|_| std::io::Error::other("download queue closed"))?;
-                download_file(&client, &url, &destination, &sha1, retry).await
+                let part = part_path(&destination)?;
+                let mut backoff = retry.initial_backoff;
+                let mut attempt = 1;
+                loop {
+                    match write_verified_part(
+                        &client,
+                        &url,
+                        &destination,
+                        &part,
+                        &sha1,
+                        Some(&bytes),
+                    )
+                    .await
+                    {
+                        Ok(()) => return Ok(()),
+                        Err(error) => {
+                            remove_part(&part).await?;
+                            if attempt == retry.attempts {
+                                return Err(error);
+                            }
+                            warn!(attempt, url, "download attempt failed");
+                            tokio::time::sleep(backoff).await;
+                            backoff = backoff.saturating_mul(2);
+                            attempt += 1;
+                        }
+                    }
+                }
             }
             .await;
             let _ = results.send(result).await;
@@ -124,18 +165,76 @@ pub async fn download_all(
                 failed += 1;
             }
         }
-        let _ = progress
-            .send(DownloadProgress {
-                finished,
-                failed,
-                total,
-            })
-            .await;
+        let _ = progress.try_send(bytes.snapshot(finished, failed));
     }
 
     match first_error {
         Some(error) => Err(error),
         None => Ok(()),
+    }
+}
+
+struct ByteProgress {
+    done: AtomicU64,
+    total: u64,
+    files: u32,
+    sink: mpsc::Sender<DownloadProgress>,
+}
+
+impl ByteProgress {
+    fn add(&self, bytes: u64) {
+        let done = self.done.fetch_add(bytes, Ordering::Relaxed) + bytes;
+        let _ = self.sink.try_send(DownloadProgress {
+            finished: 0,
+            failed: 0,
+            total: self.files,
+            bytes_done: done,
+            bytes_total: self.total,
+        });
+    }
+
+    fn snapshot(&self, finished: u32, failed: u32) -> DownloadProgress {
+        DownloadProgress {
+            finished,
+            failed,
+            total: self.files,
+            bytes_done: self.done.load(Ordering::Relaxed),
+            bytes_total: self.total,
+        }
+    }
+}
+
+/// Bytes of one attempt. A failed attempt is removed again so a retry does not count twice.
+struct Attempt<'a> {
+    progress: &'a ByteProgress,
+    added: u64,
+    committed: bool,
+}
+
+impl Attempt<'_> {
+    fn add(&mut self, bytes: u64) {
+        self.added = self.added.saturating_add(bytes);
+        self.progress.add(bytes);
+    }
+
+    fn commit(&mut self) {
+        self.committed = true;
+    }
+}
+
+impl Drop for Attempt<'_> {
+    fn drop(&mut self) {
+        if self.committed || self.added == 0 {
+            return;
+        }
+        let done = self.progress.done.fetch_sub(self.added, Ordering::Relaxed) - self.added;
+        let _ = self.progress.sink.try_send(DownloadProgress {
+            finished: 0,
+            failed: 0,
+            total: self.progress.files,
+            bytes_done: done,
+            bytes_total: self.progress.total,
+        });
     }
 }
 
@@ -145,7 +244,13 @@ async fn write_verified_part(
     destination: &Path,
     part: &Path,
     expected_sha1: &str,
+    progress: Option<&ByteProgress>,
 ) -> Result<()> {
+    let mut attempt = progress.map(|progress| Attempt {
+        progress,
+        added: 0,
+        committed: false,
+    });
     let response = client.get(url).send().await?.error_for_status()?;
     let stream = response.bytes_stream().map_err(std::io::Error::other);
     let mut reader = StreamReader::new(stream);
@@ -160,6 +265,9 @@ async fn write_verified_part(
         }
         hasher.update(&buffer[..read]);
         file.write_all(&buffer[..read]).await?;
+        if let Some(attempt) = attempt.as_mut() {
+            attempt.add(read as u64);
+        }
     }
     file.flush().await?;
     drop(file);
@@ -176,6 +284,9 @@ async fn write_verified_part(
         tokio::fs::remove_file(destination).await?;
     }
     tokio::fs::rename(part, destination).await?;
+    if let Some(attempt) = attempt.as_mut() {
+        attempt.commit();
+    }
     Ok(())
 }
 

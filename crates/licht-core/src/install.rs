@@ -245,6 +245,7 @@ fn download_tasks(cache: &SharedCache, plan: &InstallPlan<'_>) -> Result<Vec<Dow
         url: plan.version.downloads.client.url.clone(),
         destination: cache.version_jar(plan.version_id)?,
         sha1: plan.version.downloads.client.sha1.clone(),
+        size: plan.version.downloads.client.size,
     });
 
     for library in applicable_libraries(plan.version, plan.environment) {
@@ -279,6 +280,7 @@ fn download_tasks(cache: &SharedCache, plan: &InstallPlan<'_>) -> Result<Vec<Dow
             url: format!("{base}/{prefix}/{hash}"),
             destination,
             sha1: hash,
+            size: object.size,
         });
     }
 
@@ -290,6 +292,7 @@ fn task_for_artifact(cache: &SharedCache, artifact: &crate::Artifact) -> Result<
         url: artifact.url.clone(),
         destination: cache.library(&artifact.path)?,
         sha1: artifact.sha1.clone(),
+        size: artifact.size,
     })
 }
 
