@@ -1,8 +1,10 @@
 use std::path::Path;
 
+use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
+use ts_rs::TS;
 
 /// How one game process encodes both stdout and stderr.
 ///
@@ -15,20 +17,21 @@ pub enum LogCodec {
 
 use crate::{CoreError, Result};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
 pub enum OutputStream {
     Stdout,
     Stderr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct GameLine {
     pub stream: OutputStream,
     pub line: String,
 }
 
 /// `code` is missing when the process was killed by a signal.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 pub struct GameExit {
     pub code: Option<i32>,
 }

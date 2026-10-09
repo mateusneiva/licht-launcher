@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+
+import { friendlyError, messageOf } from "@/lib/errors";
+
+describe("friendly errors", () => {
+  it("turns a network failure into a short sentence", () => {
+    expect(friendlyError("HTTP request failed")).toBe(
+      "The network request failed. Check your connection and try again.",
+    );
+  });
+
+  it("turns a disk failure into a short sentence", () => {
+    expect(friendlyError("I/O operation failed")).toBe(
+      "The disk could not be written. Free some space and try again.",
+    );
+  });
+
+  it("turns a damaged download into a short sentence without the hash", () => {
+    expect(friendlyError("downloaded SHA1 does not match")).toBe(
+      "A downloaded file was damaged. Try again.",
+    );
+    expect(friendlyError("downloaded SHA1 does not match")).not.toMatch(
+      /[0-9a-f]{40}/,
+    );
+  });
+
+  it("keeps an unknown message", () => {
+    expect(friendlyError("version was not found")).toBe(
+      "version was not found",
+    );
+  });
+
+  it("reads a string or an Error", () => {
+    expect(messageOf("HTTP request failed")).toBe("HTTP request failed");
+    expect(messageOf(new Error("disk"))).toBe("disk");
+    expect(messageOf(null)).toBe("Something went wrong.");
+  });
+});

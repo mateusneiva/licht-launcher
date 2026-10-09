@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/")({
-  component: HomeRoute,
-});
+import { VersionsPage } from "@/features/versions/versions-page";
 
-function HomeRoute() {
-  return null;
-}
+export const Route = createFileRoute("/")({
+  component: VersionsPage,
+});
