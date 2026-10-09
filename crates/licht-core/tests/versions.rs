@@ -60,19 +60,20 @@ fn an_installed_runtime_is_used_when_launch_omits_java() {
         features: BTreeMap::new(),
     };
     assert!(matches!(
-        installed_java(&cache, &version, &environment),
+        installed_java(&cache, "1.21.11", &version, &environment),
         Err(CoreError::JavaRuntimeMissing)
     ));
 
     let java = cache
-        .runtime_dir("java-runtime-epsilon", "windows-x64")
-        .expect("runtime path")
+        .root()
+        .join("runtime")
+        .join("temurin21-jre21.0.2-win_x64")
         .join("bin")
         .join("java.exe");
     std::fs::create_dir_all(java.parent().expect("bin")).expect("bin");
     std::fs::write(&java, b"java").expect("java");
     assert_eq!(
-        installed_java(&cache, &version, &environment).expect("found"),
+        installed_java(&cache, "1.21.11", &version, &environment).expect("found"),
         java
     );
     let _ = std::fs::remove_dir_all(root);

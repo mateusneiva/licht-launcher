@@ -25,11 +25,12 @@ pub use install::{
     parse_install_args,
 };
 pub use java::{
-    JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaRuntimeBuild, JavaRuntimeEntry, JavaRuntimeIndex,
-    JavaRuntimeManifest, JavaRuntimeManifestRef, default_java_roots, discover_javas,
-    fetch_java_runtime_index, install_java, installed_java, matching_java,
-    parse_java_runtime_index, parse_java_runtime_manifest, parse_java_version, probe_java_major,
-    required_runtime, runtime_platform, select_runtime, validate_java,
+    ADOPTIUM_API, JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaRuntimeBuild, JavaRuntimeEntry,
+    JavaRuntimeIndex, JavaRuntimeManifest, JavaRuntimeManifestRef, default_java_roots,
+    discover_javas, fetch_java_runtime_index, install_java, install_temurin, installed_java,
+    matching_java, parse_java_runtime_index, parse_java_runtime_manifest, parse_java_version,
+    probe_java_major, required_java_major, required_runtime, runtime_platform, select_runtime,
+    validate_java,
 };
 pub use launch::{classpath, launch_command};
 pub use natives::{NativeLibrary, create_natives_directory, extract_natives, native_libraries};

@@ -8,10 +8,10 @@ use tokio::sync::mpsc;
 use crate::download::DownloadProgress;
 use crate::natives::{classifier_matches, native_classifier};
 use crate::{
-    AssetIndexFile, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadTask,
-    JAVA_RUNTIME_INDEX_URL, JavaChoice, LaunchEnvironment, Result, SharedCache, Version,
-    applicable_libraries, download_all, install_java, parse_asset_index, parse_java_runtime_index,
-    parse_java_runtime_manifest, parse_version, required_runtime, select_runtime,
+    ADOPTIUM_API, AssetIndexFile, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadTask,
+    JavaChoice, LaunchEnvironment, Result, SharedCache, Version, applicable_libraries,
+    download_all, install_java, install_temurin, parse_asset_index, parse_version,
+    required_java_major,
 };
 
 pub const ASSET_OBJECT_BASE: &str = "https://resources.download.minecraft.net";
@@ -105,9 +105,8 @@ pub fn parse_install_args(args: &[String]) -> Result<InstallArgs> {
     })
 }
 
-/// Downloads one version from the URLs in `request` and installs its Java.
-/// Mojang is the source when the caller passes Mojang URLs. A custom `java`
-/// skips the runtime download.
+/// Downloads one version from the URLs in `request` and installs Eclipse Temurin.
+/// A custom `java` skips that download.
 pub async fn install_game(
     client: &reqwest::Client,
     cache: &SharedCache,
@@ -150,37 +149,13 @@ pub async fn install_game(
         return install_java(client, cache, JavaChoice::Custom(java), progress).await;
     }
 
-    let Some(runtime) = required_runtime(&version) else {
-        return Err(CoreError::JavaRuntimeMissing);
-    };
-    let index = parse_java_runtime_index(&read_text(client, JAVA_RUNTIME_INDEX_URL).await?)?;
-    let (manifest_url, manifest_sha1) = {
-        let manifest_ref = select_runtime(
-            &index,
-            request.environment.os,
-            request.environment.arch,
-            &runtime.component,
-        )?;
-        (manifest_ref.url.clone(), manifest_ref.sha1.clone())
-    };
-    let manifest_json = read_text(client, &manifest_url).await?;
-    let actual = sha1_hex(manifest_json.as_bytes());
-    if !actual.eq_ignore_ascii_case(&manifest_sha1) {
-        return Err(CoreError::Sha1Mismatch {
-            expected: manifest_sha1,
-            actual,
-        });
-    }
-    let manifest = parse_java_runtime_manifest(&manifest_json)?;
-    install_java(
+    let major = required_java_major(request.version_id, &version);
+    install_temurin(
         client,
         cache,
-        JavaChoice::Mojang {
-            component: &runtime.component,
-            os: request.environment.os,
-            arch: request.environment.arch,
-            manifest: &manifest,
-        },
+        major,
+        request.environment,
+        ADOPTIUM_API,
         progress,
     )
     .await

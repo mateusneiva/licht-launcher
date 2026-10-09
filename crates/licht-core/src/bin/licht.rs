@@ -153,7 +153,7 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
     let environment = host_environment()?;
     let java = match args.java {
         Some(path) => path,
-        None => installed_java(&cache, &version, &environment)?,
+        None => installed_java(&cache, &args.version_id, &version, &environment)?,
     };
     let account = offline_account(&args.username)?;
     let command = prepare_offline_launch(
