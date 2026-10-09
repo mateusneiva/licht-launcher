@@ -23,7 +23,13 @@ impl SharedCache {
     }
 
     pub fn create(&self) -> Result<()> {
-        for relative in ["assets/indexes", "assets/objects", "libraries", "versions"] {
+        for relative in [
+            "assets/indexes",
+            "assets/objects",
+            "libraries",
+            "runtime",
+            "versions",
+        ] {
             std::fs::create_dir_all(self.relative(relative)?)?;
         }
         Ok(())
@@ -62,6 +68,14 @@ impl SharedCache {
             .join("versions")
             .join(&name)
             .join(format!("{name}.jar")))
+    }
+
+    pub fn runtime_dir(&self, component: &str, platform: &str) -> Result<PathBuf> {
+        Ok(self
+            .root
+            .join("runtime")
+            .join(single_component(component)?)
+            .join(single_component(platform)?))
     }
 
     pub fn version_json(&self, id: &str) -> Result<PathBuf> {

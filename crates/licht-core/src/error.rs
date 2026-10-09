@@ -26,6 +26,20 @@ pub enum CoreError {
     DataDirectory,
     #[error("cache path is invalid")]
     CachePath,
+    #[error("Java runtime index JSON is invalid")]
+    JavaRuntime(#[source] serde_json::Error),
+    #[error("Java runtime was not found for this system")]
+    JavaRuntimeMissing,
+    #[error("custom Java executable was not found")]
+    JavaPath,
+    #[error("Java version could not be read")]
+    JavaProbe,
+    #[error("Java {found} does not match required major version {required}")]
+    JavaMajor { found: u32, required: u32 },
+    #[error("native archive could not be read")]
+    NativeArchive(#[source] zip::result::ZipError),
+    #[error("native archive path is invalid")]
+    NativePath,
 }
 
 #[cfg(test)]
