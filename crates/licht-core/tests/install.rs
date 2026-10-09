@@ -16,6 +16,7 @@ use tokio::sync::{Mutex, mpsc};
 const CLIENT: &[u8] = b"client-jar";
 const LIBRARY: &[u8] = b"library-jar";
 const ASSET: &[u8] = b"asset-bytes";
+const NATIVE: &[u8] = b"native-64";
 
 #[tokio::test]
 async fn installing_twice_downloads_only_the_first_time() {
@@ -118,6 +119,84 @@ async fn an_index_with_the_wrong_sha1_downloads_nothing() {
 
     assert!(matches!(error, CoreError::Sha1Mismatch { .. }));
     assert_eq!(server.requests.load(Ordering::SeqCst), 0);
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[tokio::test]
+async fn an_architecture_placeholder_downloads_only_that_native() {
+    let directory = temporary_directory("native-arch");
+    let cache = SharedCache::at(&directory);
+    let server = serve().await;
+    let asset_hash = sha1_hex(ASSET);
+    let index_json = index_json(&asset_hash);
+    let mut version = version(&server.base, &sha1_hex(index_json.as_bytes()));
+    version.libraries.retain(|library| library.rules.is_none());
+    version.libraries.push(Library {
+        name: "tv.twitch:twitch-platform:6.5".to_string(),
+        downloads: Some(LibraryDownloads {
+            artifact: None,
+            classifiers: Some(BTreeMap::from([
+                (
+                    "natives-windows-64".to_string(),
+                    Artifact {
+                        path: "tv/twitch/twitch-platform/6.5/twitch-platform-6.5-natives-windows-64.jar".to_string(),
+                        sha1: sha1_hex(NATIVE),
+                        size: NATIVE.len() as u64,
+                        url: format!("{}/native64", server.base),
+                    },
+                ),
+                (
+                    "natives-windows-32".to_string(),
+                    Artifact {
+                        path: "tv/twitch/twitch-platform/6.5/twitch-platform-6.5-natives-windows-32.jar".to_string(),
+                        sha1: sha1_hex(b"native-32"),
+                        size: 8,
+                        url: format!("{}/native32", server.base),
+                    },
+                ),
+            ])),
+        }),
+        natives: Some(BTreeMap::from([(
+            "windows".to_string(),
+            "natives-windows-${arch}".to_string(),
+        )])),
+        rules: None,
+        extract: None,
+    });
+
+    install(
+        &cache,
+        &server,
+        &version,
+        &index_json,
+        &assets(&asset_hash),
+        &LaunchEnvironment {
+            os: OsName::Windows,
+            arch: Arch::X86_64,
+            os_version: String::new(),
+            features: BTreeMap::new(),
+        },
+    )
+    .await
+    .expect("the 64-bit native should download");
+
+    assert_eq!(
+        std::fs::read(
+            cache
+                .library(
+                    "tv/twitch/twitch-platform/6.5/twitch-platform-6.5-natives-windows-64.jar",
+                )
+                .unwrap(),
+        )
+        .unwrap(),
+        NATIVE,
+    );
+    assert!(
+        !cache
+            .library("tv/twitch/twitch-platform/6.5/twitch-platform-6.5-natives-windows-32.jar")
+            .unwrap()
+            .exists()
+    );
     let _ = std::fs::remove_dir_all(directory);
 }
 
@@ -276,6 +355,7 @@ async fn serve() -> Server {
     let files = Arc::new(Mutex::new(BTreeMap::from([
         ("/client".to_string(), CLIENT.to_vec()),
         ("/library".to_string(), LIBRARY.to_vec()),
+        ("/native64".to_string(), NATIVE.to_vec()),
     ])));
 
     tokio::spawn(async move {

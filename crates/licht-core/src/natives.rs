@@ -66,9 +66,14 @@ pub fn create_natives_directory() -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Old native maps store `natives-windows-${arch}`. `${arch}` is `64` or `32`.
+pub(crate) fn native_classifier(template: &str, arch: Arch) -> String {
+    template.replace("${arch}", arch_bits(arch))
+}
+
 fn legacy_native<'a>(library: &'a Library, env: &LaunchEnvironment) -> Option<NativeLibrary<'a>> {
     let template = library.natives.as_ref()?.get(env.os.mojang_name())?;
-    let classifier = template.replace("${arch}", arch_bits(env.arch));
+    let classifier = native_classifier(template, env.arch);
     let artifact = library
         .downloads
         .as_ref()?
