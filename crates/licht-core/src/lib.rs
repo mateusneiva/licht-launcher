@@ -17,7 +17,12 @@ pub use download::{
 };
 pub use error::CoreError;
 pub use install::{ASSET_OBJECT_BASE, InstallPlan, install_version};
-pub use java::required_runtime;
+pub use java::{
+    JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaRuntimeBuild, JavaRuntimeEntry, JavaRuntimeIndex,
+    JavaRuntimeManifest, JavaRuntimeManifestRef, fetch_java_runtime_index, install_java,
+    parse_java_runtime_index, parse_java_runtime_manifest, required_runtime, runtime_platform,
+    select_runtime,
+};
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,

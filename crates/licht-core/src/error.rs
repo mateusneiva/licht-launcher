@@ -26,6 +26,12 @@ pub enum CoreError {
     DataDirectory,
     #[error("cache path is invalid")]
     CachePath,
+    #[error("Java runtime index JSON is invalid")]
+    JavaRuntime(#[source] serde_json::Error),
+    #[error("Java runtime was not found for this system")]
+    JavaRuntimeMissing,
+    #[error("custom Java executable was not found")]
+    JavaPath,
 }
 
 #[cfg(test)]
