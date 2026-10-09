@@ -38,6 +38,7 @@ impl GameExit {
 pub async fn run_game(
     command: &[String],
     current_dir: Option<&Path>,
+    env: &[(&str, &str)],
     output: mpsc::Sender<GameLine>,
 ) -> Result<GameExit> {
     let Some(program) = command.first() else {
@@ -54,6 +55,9 @@ pub async fn run_game(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
+    for (key, value) in env {
+        process.env(key, value);
+    }
     if let Some(directory) = current_dir {
         process.current_dir(directory);
     }

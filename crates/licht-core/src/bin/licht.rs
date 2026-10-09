@@ -156,20 +156,35 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
         None => installed_java(&cache, &args.version_id, &version, &environment)?,
     };
     let account = offline_account(&args.username)?;
-    let command = prepare_offline_launch(
+    let instance = match args.game_directory {
+        Some(path) => path,
+        None => {
+            let path = cache.instance_dir(&args.version_id)?;
+            std::fs::create_dir_all(&path)?;
+            path
+        }
+    };
+    let launch = prepare_offline_launch(
         &java,
         &cache,
         &args.version_id,
         &version,
         &environment,
         &account,
-        &args.game_directory,
+        &instance,
     )?;
 
     let (output, mut incoming) = mpsc::channel(32);
-    let game_directory = args.game_directory.clone();
-    let running =
-        tokio::spawn(async move { run_game(&command, Some(&game_directory), output).await });
+    let appdata = launch.appdata.map(|path| path.display().to_string());
+    let command = launch.command;
+    let game_directory = launch.game_directory;
+    let running = tokio::spawn(async move {
+        let mut env = Vec::new();
+        if let Some(path) = &appdata {
+            env.push(("APPDATA", path.as_str()));
+        }
+        run_game(&command, Some(&game_directory), &env, output).await
+    });
     while let Some(line) = incoming.recv().await {
         match line.stream {
             OutputStream::Stdout => println!("{}", line.line),
