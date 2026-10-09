@@ -6,6 +6,8 @@ mod download;
 mod error;
 mod install;
 mod java;
+mod launch;
+mod natives;
 mod version;
 mod version_manifest;
 
@@ -24,6 +26,8 @@ pub use java::{
     parse_java_runtime_manifest, parse_java_version, probe_java_major, required_runtime,
     runtime_platform, select_runtime, validate_java,
 };
+pub use launch::{classpath, launch_command};
+pub use natives::{NativeLibrary, create_natives_directory, extract_natives, native_libraries};
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,
