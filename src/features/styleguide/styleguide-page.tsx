@@ -53,11 +53,13 @@ const spacingTokens = [
 ] as const;
 
 export function StyleguidePage() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains("dark"),
+  );
 
   useEffect(() => {
     return () => {
-      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("dark");
     };
   }, []);
 
