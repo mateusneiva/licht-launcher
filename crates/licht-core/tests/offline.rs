@@ -34,11 +34,22 @@ fn a_missing_launch_flag_fails_before_any_process() {
         "launch".to_string(),
         "--version".to_string(),
         "demo".to_string(),
-        "--username".to_string(),
-        "Steve".to_string(),
     ])
-    .expect_err("java and game dir are required");
+    .expect_err("username is required");
     assert!(matches!(error, CoreError::LaunchArgs));
+}
+
+#[test]
+fn launch_without_a_game_dir_uses_the_default_instance() {
+    let args = parse_launch_args(&[
+        "launch".to_string(),
+        "--version".to_string(),
+        "1.20.1".to_string(),
+        "--username".to_string(),
+        "Mateus".to_string(),
+    ])
+    .expect("game dir is optional");
+    assert!(args.game_directory.is_none());
 }
 
 #[tokio::test]
@@ -75,16 +86,21 @@ async fn an_installed_version_launches_offline_with_its_client_jar() {
     assert_eq!(std::fs::read(&jar).expect("installed jar"), CLIENT);
 
     let account = offline_account("Steve").expect("account");
-    let command = prepare_offline_launch(
+    let game = directory.join("game");
+    let launch = prepare_offline_launch(
         PathBuf::from("java").as_path(),
         &cache,
         "demo",
         &version,
         &environment,
         &account,
-        &directory.join("game"),
+        &game,
     )
     .expect("command");
+    let command = launch.command;
+    assert_eq!(launch.game_directory, game);
+    assert!(launch.appdata.is_none());
+    assert!(!game.join(".minecraft").exists());
 
     let jar_text = jar.display().to_string();
     assert!(command.iter().any(|part| part.contains(&jar_text)));
@@ -99,6 +115,116 @@ async fn an_installed_version_launches_offline_with_its_client_jar() {
     assert_eq!(std::fs::read(&jar).expect("jar still there"), CLIENT);
 
     let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn a_launchwrapper_version_uses_the_instance_as_its_default_folder() {
+    let directory = std::env::temp_dir().join(format!("licht-wrapper-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    let cache = SharedCache::at(directory.join("data"));
+    let account = offline_account("Steve").expect("account");
+    let game = cache.instance_dir("1.5.2").expect("instance");
+    let launch = prepare_offline_launch(
+        PathBuf::from("java").as_path(),
+        &cache,
+        "1.5.2",
+        &wrapped("net.minecraft.launchwrapper.Launch", None),
+        &environment(),
+        &account,
+        &game,
+    )
+    .expect("launch");
+    let played = game.join(".minecraft");
+    assert_eq!(launch.game_directory, played);
+    assert!(played.is_dir());
+    assert!(
+        !played
+            .symlink_metadata()
+            .expect("metadata")
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(launch.appdata.as_deref(), Some(game.as_path()));
+    assert!(
+        launch
+            .command
+            .iter()
+            .any(|part| part == &format!("-Duser.home={}", game.display()))
+    );
+
+    let library_game = cache.instance_dir("1.5.1").expect("1.5.1");
+    let by_library = prepare_offline_launch(
+        PathBuf::from("java").as_path(),
+        &cache,
+        "1.5.1",
+        &wrapped(
+            "net.minecraft.client.main.Main",
+            Some("net.minecraft:launchwrapper:1.5"),
+        ),
+        &environment(),
+        &account,
+        &library_game,
+    )
+    .expect("library");
+    assert!(by_library.appdata.is_some());
+    assert_eq!(by_library.game_directory, library_game.join(".minecraft"));
+
+    let plain_game = cache.instance_dir("1.8.9").expect("1.8.9");
+    let plain = prepare_offline_launch(
+        PathBuf::from("java").as_path(),
+        &cache,
+        "1.8.9",
+        &wrapped("net.minecraft.client.main.Main", None),
+        &environment(),
+        &account,
+        &plain_game,
+    )
+    .expect("plain");
+    assert!(plain.appdata.is_none());
+    assert_eq!(plain.game_directory, plain_game);
+    assert!(!plain_game.join(".minecraft").exists());
+    assert!(
+        plain
+            .command
+            .iter()
+            .all(|part| !part.starts_with("-Duser.home="))
+    );
+
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+fn wrapped(main_class: &str, library_name: Option<&str>) -> Version {
+    let mut version = Version {
+        arguments: GameArguments::Legacy(String::new()),
+        libraries: Vec::new(),
+        asset_index: AssetIndex {
+            id: "test".to_string(),
+            sha1: "a".repeat(40),
+            size: 1,
+            total_size: 1,
+            url: "https://example.invalid/index".to_string(),
+        },
+        main_class: main_class.to_string(),
+        downloads: VersionDownloads {
+            client: Download {
+                sha1: "b".repeat(40),
+                size: 1,
+                url: "https://example.invalid/client".to_string(),
+            },
+            server: None,
+        },
+        java_version: None,
+    };
+    if let Some(name) = library_name {
+        let mut library = library(
+            "https://example.invalid/library",
+            "com/example/demo/1.0/demo-1.0.jar",
+            "cccccccccccccccccccccccccccccccccccccccc",
+        );
+        library.name = name.to_string();
+        version.libraries.push(library);
+    }
+    version
 }
 
 fn version(base: &str, index_sha1: &str) -> Version {

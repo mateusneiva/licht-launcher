@@ -45,13 +45,13 @@ async fn a_failing_process_still_delivers_its_output() {
 #[tokio::test]
 async fn an_empty_command_is_rejected() {
     let (output, _incoming) = mpsc::channel(1);
-    let missing = run_game(&[], None, LogCodec::Utf8, output)
+    let missing = run_game(&[], None, &[], LogCodec::Utf8, output)
         .await
         .expect_err("empty");
     assert!(matches!(missing, CoreError::GameCommand));
 
     let (output, _incoming) = mpsc::channel(1);
-    let blank = run_game(&[String::new()], None, LogCodec::Utf8, output)
+    let blank = run_game(&[String::new()], None, &[], LogCodec::Utf8, output)
         .await
         .expect_err("blank");
     assert!(matches!(blank, CoreError::GameCommand));
@@ -74,6 +74,28 @@ async fn the_working_directory_is_the_one_the_caller_passes() {
     assert!(!directory.join("marker.txt").is_file());
 }
 
+#[tokio::test]
+async fn an_environment_variable_reaches_the_process() {
+    let directory = temp_dir("env");
+    let program = write_stub(&directory, "env", Stub::Env);
+    let (output, mut incoming) = mpsc::channel(8);
+    let command = [program.display().to_string()];
+
+    let exit = run_game(
+        &command,
+        None,
+        &[("LICHT_MARKER", "instances")],
+        LogCodec::Utf8,
+        output,
+    )
+    .await
+    .expect("the stub should start");
+
+    assert!(exit.succeeded());
+    let lines = collect(&mut incoming);
+    assert!(lines.iter().any(|line| line.line == "instances"));
+}
+
 fn temp_dir(name: &str) -> PathBuf {
     let directory = std::env::temp_dir().join(format!("licht-run-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&directory);
@@ -91,7 +113,7 @@ async fn start_stub(
     let command = [program.display().to_string()];
     let mut attempts = 0;
     loop {
-        match run_game(&command, current_dir, LogCodec::Utf8, output.clone()).await {
+        match run_game(&command, current_dir, &[], LogCodec::Utf8, output.clone()).await {
             Err(CoreError::Io(error))
                 if error.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 4 =>
             {
@@ -114,6 +136,7 @@ fn collect(incoming: &mut mpsc::Receiver<GameLine>) -> Vec<GameLine> {
 enum Stub {
     Streams { code: i32 },
     Marker,
+    Env,
 }
 
 fn write_stub(directory: &Path, name: &str, stub: Stub) -> PathBuf {
@@ -128,6 +151,7 @@ fn write_stub(directory: &Path, name: &str, stub: Stub) -> PathBuf {
                 format!("@echo off\r\necho hello-out\r\n>&2 echo hello-err\r\nexit /b {code}\r\n")
             }
             Stub::Marker => "@echo off\r\necho seen> marker.txt\r\n".to_string(),
+            Stub::Env => "@echo off\r\necho %LICHT_MARKER%\r\n".to_string(),
         };
         std::fs::write(&path, body).expect("stub");
         path
@@ -143,6 +167,7 @@ fn write_stub(directory: &Path, name: &str, stub: Stub) -> PathBuf {
                 format!("#!/bin/sh\necho hello-out\necho hello-err >&2\nexit {code}\n")
             }
             Stub::Marker => "#!/bin/sh\necho seen > marker.txt\n".to_string(),
+            Stub::Env => "#!/bin/sh\necho \"$LICHT_MARKER\"\n".to_string(),
         };
         let temporary = directory.join(format!(".{name}.tmp"));
         {

@@ -37,7 +37,8 @@ pub struct LaunchArgs {
     pub version_id: String,
     pub username: String,
     pub java: Option<PathBuf>,
-    pub game_directory: PathBuf,
+    /// Replaces the default `instances/<version>` root when set.
+    pub game_directory: Option<PathBuf>,
     pub cache: Option<PathBuf>,
 }
 
@@ -78,9 +79,6 @@ pub fn parse_launch_args(args: &[String]) -> Result<LaunchArgs> {
     if username.is_empty() {
         return Err(CoreError::OfflineName);
     }
-    let Some(game_directory) = game_directory else {
-        return Err(CoreError::LaunchArgs);
-    };
 
     Ok(LaunchArgs {
         version_id,
@@ -89,6 +87,25 @@ pub fn parse_launch_args(args: &[String]) -> Result<LaunchArgs> {
         game_directory,
         cache,
     })
+}
+
+pub struct OfflineLaunch {
+    pub command: Vec<String>,
+    /// Set as `APPDATA` for the process. Present when the version uses LaunchWrapper.
+    /// This is the instance root. The game reads `<appdata>/.minecraft`.
+    pub appdata: Option<PathBuf>,
+    /// Directory passed as `--gameDir` and used as the process working directory.
+    pub game_directory: PathBuf,
+}
+
+/// True when this version starts through LaunchWrapper, including a library
+/// that names the injector while the main class is already the client.
+fn uses_launchwrapper(version: &Version) -> bool {
+    version.main_class == "net.minecraft.launchwrapper.Launch"
+        || version
+            .libraries
+            .iter()
+            .any(|library| library.name.starts_with("net.minecraft:launchwrapper:"))
 }
 
 /// Extracts natives, then builds the command for an offline account.
@@ -101,9 +118,20 @@ pub fn prepare_offline_launch(
     environment: &LaunchEnvironment,
     account: &OfflineAccount,
     game_directory: &Path,
-) -> Result<Vec<String>> {
+) -> Result<OfflineLaunch> {
     let natives_directory = create_natives_directory(cache, version_id)?;
     extract_natives(cache, version, environment, &natives_directory)?;
+
+    // LaunchWrapper reads `%APPDATA%/.minecraft` or `user.home/.minecraft` before
+    // it applies `--gameDir`. The folder name makes both paths the same place.
+    let launchwrapper = uses_launchwrapper(version);
+    let played = if launchwrapper {
+        let played = game_directory.join(".minecraft");
+        std::fs::create_dir_all(&played)?;
+        played
+    } else {
+        game_directory.to_path_buf()
+    };
 
     let mut values = BTreeMap::new();
     values.insert("auth_player_name".to_string(), account.username.clone());
@@ -120,10 +148,7 @@ pub fn prepare_offline_launch(
         "launcher_version".to_string(),
         env!("CARGO_PKG_VERSION").to_string(),
     );
-    values.insert(
-        "game_directory".to_string(),
-        game_directory.display().to_string(),
-    );
+    values.insert("game_directory".to_string(), played.display().to_string());
     values.insert(
         "natives_directory".to_string(),
         natives_directory.display().to_string(),
@@ -137,5 +162,16 @@ pub fn prepare_offline_launch(
         version.asset_index.id.clone(),
     );
 
-    launch_command(java, cache, version_id, version, environment, &values)
+    let mut command = launch_command(java, cache, version_id, version, environment, &values)?;
+    let appdata = if launchwrapper {
+        command.insert(1, format!("-Duser.home={}", game_directory.display()));
+        Some(game_directory.to_path_buf())
+    } else {
+        None
+    };
+    Ok(OfflineLaunch {
+        command,
+        appdata,
+        game_directory: played,
+    })
 }

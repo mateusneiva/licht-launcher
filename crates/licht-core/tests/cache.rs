@@ -61,6 +61,22 @@ fn unsafe_path_pieces_are_rejected() {
         Err(CoreError::CachePath)
     ));
     assert!(matches!(cache.asset_index(""), Err(CoreError::CachePath)));
+    assert!(matches!(
+        cache.instance_dir(".."),
+        Err(CoreError::CachePath)
+    ));
+    assert!(matches!(cache.instance_dir(""), Err(CoreError::CachePath)));
+}
+
+#[test]
+fn an_instance_sits_beside_the_data_directory() {
+    let root = std::env::temp_dir().join(format!("licht-instance-{}", std::process::id()));
+    let cache = SharedCache::at(root.join("data"));
+    assert_eq!(
+        cache.instance_dir("1.20.1").expect("instance"),
+        root.join("instances").join("1.20.1")
+    );
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
