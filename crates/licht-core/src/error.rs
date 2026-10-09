@@ -44,8 +44,10 @@ pub enum CoreError {
     GameCommand,
     #[error("offline username is empty")]
     OfflineName,
-    #[error("launch arguments are incomplete")]
+    #[error("command arguments are incomplete")]
     LaunchArgs,
+    #[error("version was not found")]
+    VersionMissing,
     #[error("this system is not supported for launch")]
     LaunchHost,
 }

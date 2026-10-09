@@ -20,7 +20,10 @@ pub use download::{
     download_file,
 };
 pub use error::CoreError;
-pub use install::{ASSET_OBJECT_BASE, InstallPlan, install_version};
+pub use install::{
+    ASSET_OBJECT_BASE, GameInstall, InstallArgs, InstallPlan, install_game, install_version,
+    parse_install_args,
+};
 pub use java::{
     JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaRuntimeBuild, JavaRuntimeEntry, JavaRuntimeIndex,
     JavaRuntimeManifest, JavaRuntimeManifestRef, default_java_roots, discover_javas,
