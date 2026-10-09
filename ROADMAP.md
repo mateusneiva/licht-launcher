@@ -70,14 +70,14 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 **Goal:** read and understand the manifests, with no network in tests.
 
-- [ ] **1.1** `serde` types for `version_manifest_v2` + HTTP client (`reqwest`) to fetch it.
+- [x] **1.1** `serde` types for `version_manifest_v2` + HTTP client (`reqwest`) to fetch it.
   - Fixture: save a real manifest in `tests/fixtures`.
   - 📚 `serde`, `struct`/`enum`, `async/await` with `tokio`.
-- [ ] **1.2** Types for a **version JSON** (libraries, arguments, assetIndex, mainClass, downloads, javaVersion). Test with fixtures of old versions (e.g. 1.8, 1.12) and new ones (1.20+, 1.21).
+- [x] **1.2** Types for a **version JSON** (libraries, arguments, assetIndex, mainClass, downloads, javaVersion). Test with fixtures of old versions (e.g. 1.8, 1.12) and new ones (1.20+, 1.21).
   - 🛑 Strategy for versions with the old format (`minecraftArguments`) vs the new one (`arguments`).
-- [ ] **1.3** **`rules`** evaluator (os/arch/features) with tests covering Windows, Linux, and different architectures.
+- [x] **1.3** **`rules`** evaluator (os/arch/features) with tests covering Windows, Linux, and different architectures.
   - 📚 `match`, `Option`, simple traits.
-- [ ] **1.4** Types and reading of the **asset index**.
+- [x] **1.4** Types and reading of the **asset index**.
 
 **Done when:** a test loads the JSON of any fixture version and lists the libraries that apply to the current OS.
 

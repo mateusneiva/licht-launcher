@@ -4,8 +4,18 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum CoreError {
+    #[error("HTTP request failed")]
+    Http(#[from] reqwest::Error),
     #[error("I/O operation failed")]
     Io(#[from] io::Error),
+    #[error("version manifest JSON is invalid")]
+    Manifest(#[from] serde_json::Error),
+    #[error("version JSON is invalid")]
+    Version(#[source] serde_json::Error),
+    #[error("version JSON must contain either minecraftArguments or arguments")]
+    VersionArguments,
+    #[error("asset index JSON is invalid")]
+    AssetIndex(#[source] serde_json::Error),
 }
 
 #[cfg(test)]
