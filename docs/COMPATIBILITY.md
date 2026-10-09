@@ -45,19 +45,21 @@ not fill `auth_session` yet (see the gaps).
 
 ## Assets
 
-The `pre-1.6` index sets `map_to_resources`. The game then opens files under
-`--assetsDir ${game_assets}`, which is `<game directory>/resources/<logical path>`
-copied from the hashed objects. An index with `virtual` as well also copies the
-same objects to `assets/virtual/<index id>`, and that directory is
-`--assetsDir`. A logical path of empty, `.`, or `..` is rejected.
+The `pre-1.6` index sets `map_to_resources`. That covers classic, alpha, beta,
+and releases through 1.5.2, plus snapshots through `13w23b`. At launch the
+hashed objects are copied to `<game directory>/resources/<logical path>`, and
+`${game_assets}` is that `resources` folder. A file that already has the size
+from the index is left in place. A logical path of empty, `.`, or `..` is
+rejected.
 
-From 1.6 on, objects stay hashed under `assets/objects` and the game receives
+The `legacy` index sets `virtual`. That covers `13w24a` through 1.7.2. The same
+copy goes to `<cache>/assets/virtual/<index id>`, and `${game_assets}` is that
+folder. An index with both flags gets both copies, and the virtual folder is
+the one passed to the game.
+
+From 1.7.3 on, objects stay hashed under `assets/objects` and the game receives
 `${assets_root}` and `${assets_index_name}`. Those indexes do not ask for a
 copy. 1.8.9 and 1.21.11 are in this group.
-
-The core fills `assets_root` and `assets_index_name`. It parses the two flags
-and does not copy the objects yet, so `${game_assets}` is still unsubstituted
-on a pre-1.6 launch.
 
 ## Natives
 
@@ -139,9 +141,8 @@ line 100). The crash report is "Failed to start game".
 `Is Modded: Jar signature invalidated` is LaunchWrapper rewriting
 `Minecraft.class`. It is not this crash.
 
-**Legacy session and assets.** `${auth_session}` and `${game_assets}` are not
-filled, and a `map_to_resources` or `virtual` index is not copied into the game
-directory.
+**Legacy session.** `${auth_session}` is not filled. Pre-1.6 and 1.6 through
+1.7.2 arguments still contain that name.
 
 **Non-UTF-8 log lines on a code page other than 1252 or 65001.** Those bytes
 are kept with U+FFFD. Java 17 and older still use one codec for the whole

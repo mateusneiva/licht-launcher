@@ -58,6 +58,15 @@ impl SharedCache {
             .join(format!("{name}.json")))
     }
 
+    /// `<cache>/assets/virtual/<id>`, shared by every instance of that index.
+    pub fn virtual_assets_dir(&self, id: &str) -> Result<PathBuf> {
+        Ok(self
+            .root
+            .join("assets")
+            .join("virtual")
+            .join(single_component(id)?))
+    }
+
     pub fn natives_dir(&self, version_id: &str) -> Result<PathBuf> {
         Ok(self
             .root

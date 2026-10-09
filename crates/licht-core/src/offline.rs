@@ -5,7 +5,7 @@ use md5::Digest;
 
 use crate::{
     CoreError, LaunchEnvironment, Result, SharedCache, Version, create_natives_directory,
-    extract_natives, launch_command,
+    extract_natives, launch_command, parse_asset_index, reconstruct_assets,
 };
 
 #[derive(Debug)]
@@ -161,6 +161,11 @@ pub fn prepare_offline_launch(
         "assets_index_name".to_string(),
         version.asset_index.id.clone(),
     );
+    let index_json = std::fs::read_to_string(cache.asset_index(&version.asset_index.id)?)?;
+    let index = parse_asset_index(&index_json)?;
+    if let Some(assets_dir) = reconstruct_assets(cache, &index, &version.asset_index.id, &played)? {
+        values.insert("game_assets".to_string(), assets_dir.display().to_string());
+    }
 
     let mut command = launch_command(java, cache, version_id, version, environment, &values)?;
     let appdata = if launchwrapper {

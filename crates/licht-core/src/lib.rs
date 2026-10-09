@@ -13,7 +13,9 @@ mod run;
 mod version;
 mod version_manifest;
 
-pub use asset_index::{AssetIndexFile, AssetObject, fetch_asset_index, parse_asset_index};
+pub use asset_index::{
+    AssetIndexFile, AssetObject, fetch_asset_index, parse_asset_index, reconstruct_assets,
+};
 pub use cache::SharedCache;
 pub use download::{
     DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadProgress, DownloadTask, Retry, download_all,

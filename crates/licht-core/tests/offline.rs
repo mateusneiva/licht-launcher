@@ -122,6 +122,9 @@ fn a_launchwrapper_version_uses_the_instance_as_its_default_folder() {
     let directory = std::env::temp_dir().join(format!("licht-wrapper-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&directory);
     let cache = SharedCache::at(directory.join("data"));
+    let index = cache.asset_index("test").expect("index path");
+    std::fs::create_dir_all(index.parent().expect("indexes")).expect("indexes");
+    std::fs::write(&index, r#"{"objects":{}}"#).expect("index");
     let account = offline_account("Steve").expect("account");
     let game = cache.instance_dir("1.5.2").expect("instance");
     let launch = prepare_offline_launch(
@@ -188,6 +191,63 @@ fn a_launchwrapper_version_uses_the_instance_as_its_default_folder() {
             .command
             .iter()
             .all(|part| !part.starts_with("-Duser.home="))
+    );
+
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn a_launchwrapper_game_copies_resources_and_keeps_auth_session_literal() {
+    let directory =
+        std::env::temp_dir().join(format!("licht-assets-launch-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    let cache = SharedCache::at(directory.join("data"));
+    let hash = "abababababababababababababababababababab";
+    let object = cache.asset_object(hash).expect("object path");
+    std::fs::create_dir_all(object.parent().expect("prefix")).expect("objects");
+    std::fs::write(&object, b"click").expect("object");
+    let index = cache.asset_index("pre-1.6").expect("index path");
+    std::fs::create_dir_all(index.parent().expect("indexes")).expect("indexes");
+    std::fs::write(
+        &index,
+        format!(
+            r#"{{"map_to_resources":true,"objects":{{"newsound/random/click.ogg":{{"hash":"{hash}","size":5}}}}}}"#
+        ),
+    )
+    .expect("index");
+
+    let mut version = wrapped("net.minecraft.launchwrapper.Launch", None);
+    version.asset_index.id = "pre-1.6".to_string();
+    version.arguments =
+        GameArguments::Legacy("--assetsDir ${game_assets} ${auth_session}".to_string());
+
+    let game = cache.instance_dir("1.5.2").expect("instance");
+    let launch = prepare_offline_launch(
+        PathBuf::from("java").as_path(),
+        &cache,
+        "1.5.2",
+        &version,
+        &environment(),
+        &offline_account("Steve").expect("account"),
+        &game,
+    )
+    .expect("launch");
+
+    let resources = game.join(".minecraft").join("resources");
+    let sound = resources.join("newsound").join("random").join("click.ogg");
+    assert_eq!(std::fs::read(sound).expect("sound"), b"click");
+    assert!(
+        launch
+            .command
+            .iter()
+            .any(|part| part == &resources.display().to_string())
+    );
+    assert!(launch.command.iter().any(|part| part == "${auth_session}"));
+    assert!(
+        launch
+            .command
+            .iter()
+            .all(|part| !part.contains("${game_assets}"))
     );
 
     let _ = std::fs::remove_dir_all(directory);
