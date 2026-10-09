@@ -200,6 +200,152 @@ async fn an_architecture_placeholder_downloads_only_that_native() {
     let _ = std::fs::remove_dir_all(directory);
 }
 
+#[tokio::test]
+async fn only_the_running_platform_native_is_stored() {
+    let directory = temporary_directory("natives-platform");
+    let cache = SharedCache::at(&directory);
+    let server = serve().await;
+    let asset_hash = sha1_hex(ASSET);
+    let index_json = index_json(&asset_hash);
+    let mut version = version(&server.base, &sha1_hex(index_json.as_bytes()));
+    version
+        .libraries
+        .retain(|library| library.name != "com.example:windows:1.0");
+    version.libraries.push(native_jar(
+        "org.lwjgl:lwjgl:3.3.3:natives-windows",
+        "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows.jar",
+        "windows",
+        &server.base,
+    ));
+    version.libraries.push(native_jar(
+        "org.lwjgl:lwjgl:3.3.3:natives-windows-x86",
+        "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows-x86.jar",
+        "windows",
+        &server.base,
+    ));
+    version.libraries.push(native_jar(
+        "org.lwjgl:lwjgl:3.3.3:natives-windows-arm64",
+        "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows-arm64.jar",
+        "windows",
+        &server.base,
+    ));
+    version.libraries.push(native_jar(
+        "org.lwjgl:lwjgl:3.3.3:natives-linux",
+        "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-linux.jar",
+        "linux",
+        &server.base,
+    ));
+    version.libraries.push(legacy_native_jars(&server.base));
+    let environment = LaunchEnvironment {
+        os: OsName::Windows,
+        arch: Arch::X86_64,
+        os_version: String::new(),
+        features: BTreeMap::new(),
+    };
+    let assets = assets(&asset_hash);
+    install(
+        &cache,
+        &server,
+        &version,
+        &index_json,
+        &assets,
+        &environment,
+    )
+    .await
+    .expect("install");
+
+    assert!(
+        cache
+            .library("org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows.jar")
+            .expect("x64 path")
+            .is_file()
+    );
+    assert!(
+        !cache
+            .library("org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows-x86.jar")
+            .expect("x86 path")
+            .exists()
+    );
+    assert!(
+        !cache
+            .library("org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows-arm64.jar")
+            .expect("arm path")
+            .exists()
+    );
+    assert!(
+        !cache
+            .library("org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-linux.jar")
+            .expect("linux path")
+            .exists()
+    );
+    assert!(
+        cache
+            .library("org/lwjgl/lwjgl-platform/2.9.4/lwjgl-platform-2.9.4-natives-windows-64.jar")
+            .expect("legacy 64 path")
+            .is_file()
+    );
+    assert!(
+        !cache
+            .library("org/lwjgl/lwjgl-platform/2.9.4/lwjgl-platform-2.9.4-natives-windows-32.jar")
+            .expect("legacy 32 path")
+            .exists()
+    );
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+fn native_jar(name: &str, path: &str, os_name: &str, base: &str) -> Library {
+    library(
+        name,
+        &format!("{base}/library"),
+        path,
+        &sha1_hex(LIBRARY),
+        Some(vec![Rule {
+            action: RuleAction::Allow,
+            os: Some(OsRule {
+                name: Some(os_name.to_string()),
+                arch: None,
+                version: None,
+            }),
+            features: None,
+        }]),
+    )
+}
+
+fn legacy_native_jars(base: &str) -> Library {
+    let artifact = |path: &str| Artifact {
+        path: path.to_string(),
+        sha1: sha1_hex(LIBRARY),
+        size: LIBRARY.len() as u64,
+        url: format!("{base}/library"),
+    };
+    Library {
+        name: "org.lwjgl.lwjgl:lwjgl-platform:2.9.4".to_string(),
+        downloads: Some(LibraryDownloads {
+            artifact: None,
+            classifiers: Some(BTreeMap::from([
+                (
+                    "natives-windows-64".to_string(),
+                    artifact(
+                        "org/lwjgl/lwjgl-platform/2.9.4/lwjgl-platform-2.9.4-natives-windows-64.jar",
+                    ),
+                ),
+                (
+                    "natives-windows-32".to_string(),
+                    artifact(
+                        "org/lwjgl/lwjgl-platform/2.9.4/lwjgl-platform-2.9.4-natives-windows-32.jar",
+                    ),
+                ),
+            ])),
+        }),
+        natives: Some(BTreeMap::from([(
+            "windows".to_string(),
+            "natives-windows-${arch}".to_string(),
+        )])),
+        rules: None,
+        extract: None,
+    }
+}
+
 struct Server {
     base: String,
     requests: Arc<AtomicUsize>,
