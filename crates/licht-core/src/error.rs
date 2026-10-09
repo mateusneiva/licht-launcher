@@ -10,6 +10,10 @@ pub enum CoreError {
     Io(#[from] io::Error),
     #[error("version manifest JSON is invalid")]
     Manifest(#[from] serde_json::Error),
+    #[error("version JSON is invalid")]
+    Version(#[source] serde_json::Error),
+    #[error("version JSON must contain either minecraftArguments or arguments")]
+    VersionArguments,
 }
 
 #[cfg(test)]
