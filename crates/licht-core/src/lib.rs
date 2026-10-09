@@ -8,6 +8,7 @@ mod install;
 mod java;
 mod launch;
 mod natives;
+mod run;
 mod version;
 mod version_manifest;
 
@@ -28,6 +29,7 @@ pub use java::{
 };
 pub use launch::{classpath, launch_command};
 pub use natives::{NativeLibrary, create_natives_directory, extract_natives, native_libraries};
+pub use run::{GameExit, GameLine, OutputStream, run_game};
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,

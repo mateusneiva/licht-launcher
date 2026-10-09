@@ -40,6 +40,8 @@ pub enum CoreError {
     NativeArchive(#[source] zip::result::ZipError),
     #[error("native archive path is invalid")]
     NativePath,
+    #[error("game command is empty")]
+    GameCommand,
 }
 
 #[cfg(test)]
