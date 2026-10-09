@@ -5,7 +5,7 @@
 - Frontend: **React + TypeScript + Vite**, **Tailwind CSS**, **shadcn/ui** (Radix UI), **Lucide** (icons), **TanStack Router** (file-based routes in `src/routes`, hash history). **TanStack Query** (`invoke` calls), **Zustand** (global state), and **TanStack Virtual** (large lists) are decided and not installed yet. Backend: Rust.
 - Display name: **Licht Launcher**. Repository/packages: `licht-launcher`. Binary/CLI: `licht`. Core crate: `licht-core`.
 - The project owner is a senior TypeScript/Node developer, but has **LITTLE knowledge of Rust**.
-- The full plan is in `ROADMAP.md`. Always work on **one item at a time**.
+- The full plan is in `docs/ROADMAP.md`. Always work on **one item at a time**.
 
 ## How to work with me
 - Before any code, present a **short PLAN** (files that will be created/changed, approach, alternatives) and wait for my approval.
@@ -67,7 +67,7 @@
 - The project is **not official**: keep the notice "not affiliated with Mojang Studios or Microsoft" in the README and on the About screen. Do not use "Minecraft" or "Mojang" in the project, package, or binary name, and do not use official logos or art.
 
 ## Release conventions
-- Each `0.x` release gets a **German flower codename**, according to the table in `ROADMAP.md` (0.1 Lilie, 0.2 Iris, 0.3 Rose...). The codename goes on the About screen, in the release title, and in the installer name.
+- Each `0.x` release gets a **German flower codename**, according to the table in `docs/ROADMAP.md` (0.1 Lilie, 0.2 Iris, 0.3 Rose...). The codename goes on the About screen, in the release title, and in the installer name.
 
 ## Useful references
 - Manifest: `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`

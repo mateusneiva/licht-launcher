@@ -2,8 +2,9 @@
 
 Licht Launcher is an unofficial Minecraft: Java Edition launcher for Windows and
 Linux. It uses Tauri v2, a React + TypeScript + Vite frontend, and a Rust Cargo
-workspace. [AGENTS.md](AGENTS.md) defines the project rules;
-[ROADMAP.md](ROADMAP.md) tracks implementation.
+workspace. [AGENTS.md](../AGENTS.md) defines the project rules;
+[ROADMAP.md](ROADMAP.md) tracks implementation. Version differences are in
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Layers
 

@@ -52,7 +52,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 - [x] **0.3** CI (GitHub Actions) with a **windows-latest + ubuntu-latest** matrix: fmt, clippy, Rust and frontend tests, Tauri build.
 - [x] **0.4** Logging structure (`tracing`) and base error type (`thiserror`) in the core.
   - 📚 `Result`, the `?` operator, `thiserror` vs `anyhow`.
-- [x] **0.5** Short `ARCHITECTURE.md` describing the layers (core / tauri / frontend).
+- [x] **0.5** Short `docs/ARCHITECTURE.md` describing the layers (core / tauri / frontend).
 - [x] **0.6** Project license and "unofficial" notice in the README.
   - 🛑 License (MIT, Apache-2.0, GPL...).
 - [x] **0.7** **Base design system**: Tailwind + shadcn/ui configured, **design tokens** (colors, radii, spacing, typography) as CSS variables in a single file, light/dark theme, Lucide icons, and base components (Button, Input, Dialog, Tabs, Progress, Toast, Select, Tooltip, ScrollArea). Page `/#/styleguide`, visible only with `VITE_SHOW_STYLEGUIDE=true`, showing all of them.
