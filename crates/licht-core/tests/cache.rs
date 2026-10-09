@@ -73,6 +73,7 @@ fn create_makes_the_shared_folders() {
         PathBuf::from("assets").join("indexes"),
         PathBuf::from("assets").join("objects"),
         PathBuf::from("libraries"),
+        PathBuf::from("natives"),
         PathBuf::from("runtime"),
         PathBuf::from("versions"),
     ] {

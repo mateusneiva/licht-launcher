@@ -1,14 +1,11 @@
 use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{
     Arch, Argument, ArgumentValue, Artifact, CoreError, GameArguments, LaunchEnvironment, Library,
-    OsName, Result, SharedCache, Version, applicable_libraries, rules_allow,
+    OsName, Result, SharedCache, Version, applicable_libraries, rules_allow, runtime_platform,
 };
-
-static NATIVES_RUNS: AtomicU64 = AtomicU64::new(0);
 
 pub struct NativeLibrary<'a> {
     pub artifact: &'a Artifact,
@@ -58,10 +55,14 @@ pub fn extract_natives(
     Ok(())
 }
 
-/// A new directory under the system temp folder. Each call is a separate run.
-pub fn create_natives_directory() -> Result<PathBuf> {
-    let run = NATIVES_RUNS.fetch_add(1, Ordering::Relaxed);
-    let path = std::env::temp_dir().join(format!("licht-natives-{}-{run}", std::process::id()));
+/// `natives/<version>/<platform>` inside the cache. The platform name matches the Java runtime.
+pub fn create_natives_directory(
+    cache: &SharedCache,
+    version_id: &str,
+    env: &LaunchEnvironment,
+) -> Result<PathBuf> {
+    let platform = runtime_platform(env.os, env.arch)?;
+    let path = cache.natives_dir(version_id, platform)?;
     std::fs::create_dir_all(&path)?;
     Ok(path)
 }

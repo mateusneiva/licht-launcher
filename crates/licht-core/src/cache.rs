@@ -27,6 +27,7 @@ impl SharedCache {
             "assets/indexes",
             "assets/objects",
             "libraries",
+            "natives",
             "runtime",
             "versions",
         ] {
@@ -55,6 +56,14 @@ impl SharedCache {
             .join("assets")
             .join("indexes")
             .join(format!("{name}.json")))
+    }
+
+    pub fn natives_dir(&self, version_id: &str, platform: &str) -> Result<PathBuf> {
+        Ok(self
+            .root
+            .join("natives")
+            .join(single_component(version_id)?)
+            .join(single_component(platform)?))
     }
 
     pub fn library(&self, artifact_path: &str) -> Result<PathBuf> {
