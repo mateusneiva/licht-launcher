@@ -12,7 +12,7 @@ standalone Rust core, structured logging, typed core errors, the design system,
 TanStack Router with file routes under `src/routes`, frontend tests, and
 Windows/Ubuntu CI. The style guide is at `/#/styleguide` when
 `VITE_SHOW_STYLEGUIDE=true` (see `.env.example`). Game installation, game
-launching, and account authentication are planned in the [roadmap](ROADMAP.md).
+launching, and account authentication are planned in the [roadmap](docs/ROADMAP.md).
 
 ## Prerequisites
 
@@ -58,8 +58,9 @@ Ubuntu. `pnpm lint` checks formatting and imports as well as lint rules.
 
 ## Documentation
 
-- [Architecture](ARCHITECTURE.md): layer responsibilities and project boundaries.
-- [Roadmap](ROADMAP.md): implementation stages and decisions requiring approval.
+- [Architecture](docs/ARCHITECTURE.md): layer responsibilities and project boundaries.
+- [Roadmap](docs/ROADMAP.md): implementation stages and decisions requiring approval.
+- [Compatibility](docs/COMPATIBILITY.md): version differences the launcher has to cover.
 - [Project rules](AGENTS.md): development conventions.
 
 ## License
