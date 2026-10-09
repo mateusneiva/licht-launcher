@@ -70,7 +70,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 **Goal:** read and understand the manifests, with no network in tests.
 
-- [ ] **1.1** `serde` types for `version_manifest_v2` + HTTP client (`reqwest`) to fetch it.
+- [x] **1.1** `serde` types for `version_manifest_v2` + HTTP client (`reqwest`) to fetch it.
   - Fixture: save a real manifest in `tests/fixtures`.
   - 📚 `serde`, `struct`/`enum`, `async/await` with `tokio`.
 - [ ] **1.2** Types for a **version JSON** (libraries, arguments, assetIndex, mainClass, downloads, javaVersion). Test with fixtures of old versions (e.g. 1.8, 1.12) and new ones (1.20+, 1.21).
