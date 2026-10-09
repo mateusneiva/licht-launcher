@@ -1,14 +1,16 @@
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use sha1::{Digest, Sha1};
 use tokio::sync::mpsc;
 
 use crate::download::DownloadProgress;
 use crate::{
-    AssetIndexFile, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadTask, LaunchEnvironment,
-    Result, SharedCache, Version, applicable_libraries, download_all,
+    AssetIndexFile, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadTask,
+    JAVA_RUNTIME_INDEX_URL, JavaChoice, LaunchEnvironment, Result, SharedCache, Version,
+    applicable_libraries, download_all, install_java, parse_asset_index, parse_java_runtime_index,
+    parse_java_runtime_manifest, parse_version, required_runtime, select_runtime,
 };
 
 pub const ASSET_OBJECT_BASE: &str = "https://resources.download.minecraft.net";
@@ -50,6 +52,169 @@ pub async fn install_version(
         progress,
     )
     .await
+}
+
+pub struct GameInstall<'a> {
+    pub version_id: &'a str,
+    pub version_json_url: &'a str,
+    pub version_sha1: &'a str,
+    pub environment: &'a LaunchEnvironment,
+    pub asset_base: &'a str,
+    pub java: Option<&'a Path>,
+}
+
+#[derive(Debug)]
+pub struct InstallArgs {
+    pub version_id: String,
+    pub cache: Option<PathBuf>,
+    pub java: Option<PathBuf>,
+}
+
+pub fn parse_install_args(args: &[String]) -> Result<InstallArgs> {
+    if args.first().map(String::as_str) != Some("install") {
+        return Err(CoreError::LaunchArgs);
+    }
+
+    let mut version_id = None;
+    let mut cache = None;
+    let mut java = None;
+    let mut rest = args[1..].iter();
+    while let Some(flag) = rest.next() {
+        let Some(value) = rest.next() else {
+            return Err(CoreError::LaunchArgs);
+        };
+        if value.starts_with("--") {
+            return Err(CoreError::LaunchArgs);
+        }
+        match flag.as_str() {
+            "--version" => version_id = Some(value.clone()),
+            "--cache" => cache = Some(PathBuf::from(value)),
+            "--java" => java = Some(PathBuf::from(value)),
+            _ => return Err(CoreError::LaunchArgs),
+        }
+    }
+
+    let Some(version_id) = version_id.filter(|id| !id.is_empty()) else {
+        return Err(CoreError::LaunchArgs);
+    };
+    Ok(InstallArgs {
+        version_id,
+        cache,
+        java,
+    })
+}
+
+/// Downloads one version from the URLs in `request` and installs its Java.
+/// Mojang is the source when the caller passes Mojang URLs. A custom `java`
+/// skips the runtime download.
+pub async fn install_game(
+    client: &reqwest::Client,
+    cache: &SharedCache,
+    request: GameInstall<'_>,
+    progress: mpsc::Sender<DownloadProgress>,
+) -> Result<PathBuf> {
+    let json = read_text(client, request.version_json_url).await?;
+    let actual = sha1_hex(json.as_bytes());
+    if !actual.eq_ignore_ascii_case(request.version_sha1) {
+        return Err(CoreError::Sha1Mismatch {
+            expected: request.version_sha1.to_string(),
+            actual,
+        });
+    }
+    let version = parse_version(&json)?;
+    let json_path = cache.version_json(request.version_id)?;
+    if let Some(parent) = json_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&json_path, &json)?;
+
+    let index_json = read_text(client, &version.asset_index.url).await?;
+    let assets = parse_asset_index(&index_json)?;
+    install_version(
+        client,
+        cache,
+        InstallPlan {
+            version_id: request.version_id,
+            version: &version,
+            asset_index_json: &index_json,
+            assets: &assets,
+            environment: request.environment,
+            asset_base: request.asset_base,
+        },
+        progress.clone(),
+    )
+    .await?;
+
+    if let Some(java) = request.java {
+        return install_java(client, cache, JavaChoice::Custom(java), progress).await;
+    }
+
+    let Some(runtime) = required_runtime(&version) else {
+        return Err(CoreError::JavaRuntimeMissing);
+    };
+    let index = parse_java_runtime_index(&read_text(client, JAVA_RUNTIME_INDEX_URL).await?)?;
+    let (manifest_url, manifest_sha1) = {
+        let manifest_ref = select_runtime(
+            &index,
+            request.environment.os,
+            request.environment.arch,
+            &runtime.component,
+        )?;
+        (manifest_ref.url.clone(), manifest_ref.sha1.clone())
+    };
+    let manifest_json = read_text(client, &manifest_url).await?;
+    let actual = sha1_hex(manifest_json.as_bytes());
+    if !actual.eq_ignore_ascii_case(&manifest_sha1) {
+        return Err(CoreError::Sha1Mismatch {
+            expected: manifest_sha1,
+            actual,
+        });
+    }
+    let manifest = parse_java_runtime_manifest(&manifest_json)?;
+    install_java(
+        client,
+        cache,
+        JavaChoice::Mojang {
+            component: &runtime.component,
+            os: request.environment.os,
+            arch: request.environment.arch,
+            manifest: &manifest,
+        },
+        progress,
+    )
+    .await
+}
+
+async fn read_text(client: &reqwest::Client, url: &str) -> Result<String> {
+    let mut last_error = None;
+    for _ in 0..3 {
+        let response = match client.get(url).send().await {
+            Ok(response) => response,
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        };
+        let response = match response.error_for_status() {
+            Ok(response) => response,
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        };
+        match response.text().await {
+            Ok(text) => return Ok(text),
+            Err(error) => last_error = Some(error),
+        }
+    }
+    match last_error {
+        Some(error) => Err(error.into()),
+        None => Err(CoreError::JavaRuntimeMissing),
+    }
+}
+
+fn sha1_hex(bytes: &[u8]) -> String {
+    hex_encode(Sha1::digest(bytes).as_slice())
 }
 
 fn write_asset_index(cache: &SharedCache, version: &Version, json: &str) -> Result<()> {
