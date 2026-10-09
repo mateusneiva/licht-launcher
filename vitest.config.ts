@@ -7,9 +7,6 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: "jsdom",
-      env: {
-        VITE_SHOW_STYLEGUIDE: "true",
-      },
       setupFiles: ["./src/test/setup.ts"],
       include: ["src/**/*.test.{ts,tsx}"],
     },
