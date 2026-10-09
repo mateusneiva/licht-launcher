@@ -92,7 +92,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 - [x] **2.2** Parallel queue with a concurrency limit (e.g. 8-16) and progress aggregation.
   - 🛑 Default concurrency limit and retry policy.
   - 📚 `tokio::spawn`, `Semaphore`, channels (`mpsc`).
-- [ ] **2.3** Directory structure and **shared cache** (libraries, assets by hash) outside instances.
+- [x] **2.3** Directory structure and **shared cache** (libraries, assets by hash) outside instances.
   - 🛑 On-disk layout (compatible or not with the official `.minecraft`).
   - Use `directories` for per-OS paths.
 - [ ] **2.4** Version installer: given a version ID, downloads client.jar + libraries + assets and skips what is already valid.
