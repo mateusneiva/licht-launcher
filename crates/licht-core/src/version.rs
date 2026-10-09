@@ -155,6 +155,105 @@ struct ModernArguments {
     jvm: Vec<Argument>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaunchEnvironment {
+    pub os: OsName,
+    pub arch: Arch,
+    pub os_version: String,
+    pub features: BTreeMap<String, bool>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OsName {
+    Windows,
+    Linux,
+    Osx,
+}
+
+impl OsName {
+    fn mojang_name(self) -> &'static str {
+        match self {
+            Self::Windows => "windows",
+            Self::Linux => "linux",
+            Self::Osx => "osx",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Arch {
+    X86,
+    X86_64,
+}
+
+impl Arch {
+    fn mojang_name(self) -> &'static str {
+        match self {
+            Self::X86 => "x86",
+            Self::X86_64 => "x86_64",
+        }
+    }
+}
+
+pub fn rules_allow(rules: Option<&[Rule]>, env: &LaunchEnvironment) -> bool {
+    let Some(rules) = rules else {
+        return true;
+    };
+    if rules.is_empty() {
+        return true;
+    }
+
+    let mut allowed = false;
+    for rule in rules {
+        if rule_matches(rule, env) {
+            allowed = rule.action == RuleAction::Allow;
+        }
+    }
+    allowed
+}
+
+pub fn applicable_libraries<'a>(version: &'a Version, env: &LaunchEnvironment) -> Vec<&'a Library> {
+    version
+        .libraries
+        .iter()
+        .filter(|library| rules_allow(library.rules.as_deref(), env))
+        .collect()
+}
+
+fn rule_matches(rule: &Rule, env: &LaunchEnvironment) -> bool {
+    if let Some(os) = &rule.os {
+        if let Some(name) = &os.name
+            && name != env.os.mojang_name()
+        {
+            return false;
+        }
+        if let Some(arch) = &os.arch
+            && arch != env.arch.mojang_name()
+        {
+            return false;
+        }
+        if let Some(version) = &os.version {
+            let Ok(pattern) = regex::Regex::new(version) else {
+                return false;
+            };
+            if !pattern.is_match(&env.os_version) {
+                return false;
+            }
+        }
+    }
+
+    if let Some(features) = &rule.features {
+        for (name, expected) in features {
+            let actual = env.features.get(name).copied().unwrap_or(false);
+            if actual != *expected {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
 pub fn parse_version(json: &str) -> Result<Version> {
     let file: VersionFile = serde_json::from_str(json).map_err(CoreError::Version)?;
     let arguments = match (file.minecraft_arguments, file.arguments) {

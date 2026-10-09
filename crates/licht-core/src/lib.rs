@@ -1,14 +1,16 @@
 //! Minecraft launcher core, independent of Tauri.
 
+mod asset_index;
 mod error;
 mod version;
 mod version_manifest;
 
+pub use asset_index::{AssetIndexFile, AssetObject, fetch_asset_index, parse_asset_index};
 pub use error::CoreError;
 pub use version::{
-    Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion, Library,
-    LibraryDownloads, LibraryExtract, OsRule, Rule, RuleAction, Version, VersionDownloads,
-    parse_version,
+    Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
+    LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,
+    Version, VersionDownloads, applicable_libraries, parse_version, rules_allow,
 };
 pub use version_manifest::{
     LatestVersions, ManifestVersion, VERSION_MANIFEST_URL, VersionManifest, VersionType,
