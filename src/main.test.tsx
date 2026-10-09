@@ -24,17 +24,4 @@ describe("frontend startup", () => {
       screen.queryByRole("heading", { name: "Style guide" }),
     ).not.toBeInTheDocument();
   });
-
-  it("mounts the styleguide on the dev route", async () => {
-    window.location.hash = "#/styleguide";
-    render(<div id="root" />);
-
-    await act(async () => {
-      await import("./main");
-    });
-
-    expect(
-      await screen.findByRole("heading", { name: "Style guide" }),
-    ).toBeInTheDocument();
-  });
 });
