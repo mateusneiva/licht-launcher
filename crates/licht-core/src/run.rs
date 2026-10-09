@@ -114,6 +114,10 @@ fn system_codec() -> LogCodec {
 
 /// `None` is Linux, where the usual locale is UTF-8. `65001` is the UTF-8
 /// code page. Any other page is read as lossy UTF-8 so the game keeps running.
+///
+/// Linux never calls this: `system_codec` returns UTF-8 there. The function
+/// stays available in tests so the page mapping is checked on both systems.
+#[cfg(any(windows, test))]
 fn codec_for_page(code_page: Option<u32>) -> LogCodec {
     match code_page {
         Some(1252) => LogCodec::Windows1252,
