@@ -1,9 +1,11 @@
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use licht_core::{
-    Arch, CoreError, JavaChoice, JavaRuntimeEntry, OsName, SharedCache, install_java,
-    parse_java_runtime_index, parse_java_runtime_manifest, parse_version, required_runtime,
-    select_runtime,
+    Arch, CoreError, JavaChoice, JavaRuntimeEntry, OsName, SharedCache, default_java_roots,
+    discover_javas, install_java, matching_java, parse_java_runtime_index,
+    parse_java_runtime_manifest, parse_java_version, parse_version, probe_java_major,
+    required_runtime, select_runtime, validate_java,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -186,6 +188,148 @@ async fn the_mojang_runtime_is_installed_once() {
     .expect("the second install should skip the download");
     assert_eq!(server.requests.load(Ordering::SeqCst), requests);
     let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn java_version_text_uses_the_legacy_and_modern_major() {
+    assert_eq!(
+        parse_java_version("java version \"1.8.0_51\"\r\n").expect("java 8"),
+        8
+    );
+    assert_eq!(
+        parse_java_version("openjdk version \"21.0.7\" 2025-04-15\n").expect("java 21"),
+        21
+    );
+    assert_eq!(
+        parse_java_version("java version \"17.0.12\" 2024-07-16\n").expect("java 17"),
+        17
+    );
+    assert!(matches!(
+        parse_java_version("not a java"),
+        Err(CoreError::JavaProbe)
+    ));
+}
+
+#[test]
+fn search_roots_follow_the_operating_system() {
+    assert!(default_java_roots(OsName::Windows).contains(&r"C:\Program Files\Java"));
+    assert!(default_java_roots(OsName::Windows).contains(&r"C:\Program Files\Eclipse Adoptium"));
+    assert!(default_java_roots(OsName::Linux).contains(&"/usr/lib/jvm"));
+    assert!(default_java_roots(OsName::Osx).contains(&"/Library/Java/JavaVirtualMachines"));
+    assert!(!default_java_roots(OsName::Windows).contains(&"/usr/lib/jvm"));
+}
+
+#[test]
+fn discovery_finds_binaries_and_ignores_a_missing_root() {
+    let root = std::env::temp_dir().join(format!("licht-java-discover-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let windows = root.join("win").join("jdk-21").join("bin").join("java.exe");
+    let linux = root
+        .join("linux")
+        .join("java-8-openjdk")
+        .join("bin")
+        .join("java");
+    let macos = root
+        .join("mac")
+        .join("jdk-21.jdk")
+        .join("Contents")
+        .join("Home")
+        .join("bin")
+        .join("java");
+    for path in [&windows, &linux, &macos] {
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("directory");
+        std::fs::write(path, b"").expect("binary");
+    }
+    std::fs::write(root.join("win").join("readme.txt"), b"no").expect("unrelated file");
+
+    assert_eq!(
+        discover_javas(&[root.join("win")], OsName::Windows),
+        vec![windows]
+    );
+    assert_eq!(
+        discover_javas(&[root.join("linux")], OsName::Linux),
+        vec![linux]
+    );
+    assert_eq!(
+        discover_javas(&[root.join("mac")], OsName::Osx),
+        vec![macos]
+    );
+    assert!(discover_javas(&[root.join("missing")], OsName::Linux).is_empty());
+}
+
+#[test]
+fn one_point_eight_and_one_point_twenty_one_need_different_javas() {
+    let directory = std::env::temp_dir().join(format!("licht-java-probe-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).expect("directory");
+    let java_8 = write_java_stub(&directory, "java8", "1.8.0_51", StubKind::Stderr);
+    let java_21 = write_java_stub(&directory, "java21", "21.0.7", StubKind::Stdout);
+    let broken = write_java_stub(&directory, "broken", "nope", StubKind::Stderr);
+    let failed = write_java_stub(&directory, "failed", "21.0.7", StubKind::Fail);
+
+    let version_8 = parse_version(include_str!("fixtures/version-1.8.9.json")).expect("1.8.9");
+    let version_21 = parse_version(include_str!("fixtures/version-1.21.11.json")).expect("1.21.11");
+    let legacy = required_runtime(&version_8).expect("1.8.9 names a runtime");
+    let modern = required_runtime(&version_21).expect("1.21.11 names a runtime");
+
+    assert_eq!(probe_java_major(&java_8).expect("java 8"), 8);
+    assert_eq!(probe_java_major(&java_21).expect("java 21"), 21);
+    assert_eq!(validate_java(&java_8, legacy).expect("match"), 8);
+    assert!(matches!(
+        validate_java(&java_8, modern),
+        Err(CoreError::JavaMajor {
+            found: 8,
+            required: 21
+        })
+    ));
+    assert!(matches!(
+        probe_java_major(&broken),
+        Err(CoreError::JavaProbe)
+    ));
+    assert!(matches!(
+        probe_java_major(&failed),
+        Err(CoreError::JavaProbe)
+    ));
+
+    let candidates = vec![broken, java_21.clone(), failed, java_8.clone()];
+    assert_eq!(matching_java(&candidates, legacy).as_ref(), Some(&java_8));
+    assert_eq!(matching_java(&candidates, modern).as_ref(), Some(&java_21));
+    assert!(matching_java(&[java_8], modern).is_none());
+}
+
+enum StubKind {
+    Stderr,
+    Stdout,
+    Fail,
+}
+
+fn write_java_stub(directory: &Path, name: &str, version: &str, kind: StubKind) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path = directory.join(format!("{name}.cmd"));
+        let line = match kind {
+            StubKind::Stderr => format!(">&2 echo java version \"{version}\"\r\n"),
+            StubKind::Stdout => format!("echo java version \"{version}\"\r\n"),
+            StubKind::Fail => "exit /b 1\r\n".to_string(),
+        };
+        std::fs::write(&path, format!("@echo off\r\n{line}")).expect("stub");
+        path
+    }
+    #[cfg(unix)]
+    {
+        let path = directory.join(name);
+        let line = match kind {
+            StubKind::Stderr => format!("echo 'java version \"{version}\"' >&2\n"),
+            StubKind::Stdout => format!("echo 'java version \"{version}\"'\n"),
+            StubKind::Fail => "exit 1\n".to_string(),
+        };
+        std::fs::write(&path, format!("#!/bin/sh\n{line}")).expect("stub");
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = std::fs::metadata(&path).expect("metadata").permissions();
+        permissions.set_mode(permissions.mode() | 0o755);
+        std::fs::set_permissions(&path, permissions).expect("executable");
+        path
+    }
 }
 
 fn manifest_json(base: &str) -> String {

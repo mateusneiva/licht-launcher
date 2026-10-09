@@ -108,7 +108,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 - [x] **3.1** Discover the required runtime (`javaVersion` from the version JSON).
 - [x] **3.2** Download and install the Mojang runtime (`java-runtime` manifest) or Adoptium/Temurin.
   - 🛑 Which source to use by default and whether the user can point to their own Java.
-- [ ] **3.3** Detect already installed Javas (optional) and validate the version.
+- [x] **3.3** Detect already installed Javas (optional) and validate the version.
 
 **Done when:** asking for "1.21" and "1.8" results in two distinct, correct, usable runtimes.
 

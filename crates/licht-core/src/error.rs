@@ -32,6 +32,10 @@ pub enum CoreError {
     JavaRuntimeMissing,
     #[error("custom Java executable was not found")]
     JavaPath,
+    #[error("Java version could not be read")]
+    JavaProbe,
+    #[error("Java {found} does not match required major version {required}")]
+    JavaMajor { found: u32, required: u32 },
 }
 
 #[cfg(test)]
