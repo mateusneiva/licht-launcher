@@ -4,3 +4,7 @@
 /target/
 /src-tauri/gen/
 *.tsbuildinfo
+
+# Environment Variables
+.env*
+!.env.example
