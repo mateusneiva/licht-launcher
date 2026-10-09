@@ -47,9 +47,9 @@ pub use version::{
     Version, VersionDownloads, applicable_libraries, parse_version, rules_allow,
 };
 pub use version_manifest::{
-    LatestVersions, ManifestVersion, VERSION_MANIFEST_URL, VersionManifest, VersionType,
-    VersionsArgs, fetch_version_manifest, parse_version_manifest, parse_versions_args,
-    version_lines, version_type_name,
+    LatestVersions, ManifestVersion, VERSION_MANIFEST_URL, VersionManifest, VersionSummary,
+    VersionType, VersionsArgs, fetch_version_manifest, parse_version_manifest, parse_versions_args,
+    version_lines, version_summaries, version_type_name,
 };
 
 pub type Result<T> = std::result::Result<T, CoreError>;

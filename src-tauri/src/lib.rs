@@ -1,6 +1,8 @@
 use anyhow::Context;
 
+mod commands;
 mod logging;
+mod progress;
 
 pub fn run() -> anyhow::Result<()> {
     logging::init()?;
@@ -10,6 +12,12 @@ pub fn run() -> anyhow::Result<()> {
     );
 
     tauri::Builder::default()
+        .manage(commands::OperationLock::new())
+        .invoke_handler(tauri::generate_handler![
+            commands::list_versions,
+            commands::install_version,
+            commands::launch
+        ])
         .run(tauri::generate_context!())
         .context("Failed to run Licht Launcher")
 }

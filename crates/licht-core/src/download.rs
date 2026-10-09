@@ -4,11 +4,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use futures_util::TryStreamExt;
+use serde::Serialize;
 use sha1::{Digest, Sha1};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{Semaphore, mpsc};
 use tokio_util::io::StreamReader;
 use tracing::warn;
+use ts_rs::TS;
 
 use crate::{CoreError, Result};
 
@@ -36,12 +38,16 @@ pub struct DownloadTask {
     pub size: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub finished: u32,
     pub failed: u32,
     pub total: u32,
+    // JSON numbers. A download size fits in a JavaScript number, unlike `bigint`.
+    #[ts(type = "number")]
     pub bytes_done: u64,
+    #[ts(type = "number")]
     pub bytes_total: u64,
 }
 

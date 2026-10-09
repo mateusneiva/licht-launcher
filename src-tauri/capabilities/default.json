@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "The main window can call the launcher commands and listen for progress.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

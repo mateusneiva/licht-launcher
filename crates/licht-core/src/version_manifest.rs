@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-use crate::{CoreError, Result};
+use crate::{CoreError, Result, SharedCache};
 
 pub const VERSION_MANIFEST_URL: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -32,7 +33,7 @@ pub struct ManifestVersion {
     pub compliance_level: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum VersionType {
     Release,
@@ -48,6 +49,32 @@ pub fn version_type_name(version_type: &VersionType) -> &'static str {
         VersionType::OldBeta => "old_beta",
         VersionType::OldAlpha => "old_alpha",
     }
+}
+
+/// One manifest entry, plus whether its version JSON is already in the cache.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionSummary {
+    pub id: String,
+    pub version_type: VersionType,
+    pub installed: bool,
+}
+
+/// Marks each manifest entry installed when `versions/<id>/<id>.json` exists.
+///
+/// An id that cannot be a single path segment is listed and not installed.
+pub fn version_summaries(manifest: &VersionManifest, cache: &SharedCache) -> Vec<VersionSummary> {
+    manifest
+        .versions
+        .iter()
+        .map(|version| VersionSummary {
+            id: version.id.clone(),
+            version_type: version.version_type.clone(),
+            installed: cache
+                .version_json(&version.id)
+                .is_ok_and(|path| path.is_file()),
+        })
+        .collect()
 }
 
 pub fn version_lines(manifest: &VersionManifest) -> Vec<String> {

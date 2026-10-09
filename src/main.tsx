@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createHashHistory,
   createRouter,
@@ -6,8 +7,12 @@ import {
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { Toaster } from "@/components/ui/sonner";
+
 import { routeTree } from "./routeTree.gen";
 import "./styles/tokens.css";
+
+const queryClient = new QueryClient();
 
 const router = createRouter({
   routeTree,
@@ -28,6 +33,9 @@ if (root === null) {
 
 createRoot(root).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+      <Toaster />
+    </QueryClientProvider>
   </StrictMode>,
 );

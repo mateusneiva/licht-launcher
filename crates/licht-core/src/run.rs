@@ -1,8 +1,10 @@
 use std::path::Path;
 
+use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
+use ts_rs::TS;
 
 /// How one game process encodes both stdout and stderr.
 ///
@@ -15,20 +17,21 @@ pub enum LogCodec {
 
 use crate::{CoreError, Result};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
 pub enum OutputStream {
     Stdout,
     Stderr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct GameLine {
     pub stream: OutputStream,
     pub line: String,
 }
 
 /// `code` is missing when the process was killed by a signal.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 pub struct GameExit {
     pub code: Option<i32>,
 }
@@ -111,6 +114,10 @@ fn system_codec() -> LogCodec {
 
 /// `None` is Linux, where the usual locale is UTF-8. `65001` is the UTF-8
 /// code page. Any other page is read as lossy UTF-8 so the game keeps running.
+///
+/// Linux never calls this: `system_codec` returns UTF-8 there. The function
+/// stays available in tests so the page mapping is checked on both systems.
+#[cfg(any(windows, test))]
 fn codec_for_page(code_page: Option<u32>) -> LogCodec {
     match code_page {
         Some(1252) => LogCodec::Windows1252,
