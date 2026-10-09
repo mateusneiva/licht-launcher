@@ -9,7 +9,7 @@ async fn a_finished_process_reports_both_streams_and_success() {
     let program = write_stub(&directory, "streams", Stub::Streams { code: 0 });
     let (output, mut incoming) = mpsc::channel(8);
 
-    let exit = start_stub(&program, None, output)
+    let exit = start_stub(&program, None, &[], output)
         .await
         .expect("the stub should start");
 
@@ -31,7 +31,7 @@ async fn a_failing_process_still_delivers_its_output() {
     let program = write_stub(&directory, "fail", Stub::Streams { code: 1 });
     let (output, mut incoming) = mpsc::channel(8);
 
-    let exit = start_stub(&program, None, output)
+    let exit = start_stub(&program, None, &[], output)
         .await
         .expect("the stub should start");
 
@@ -65,7 +65,7 @@ async fn the_working_directory_is_the_one_the_caller_passes() {
     std::fs::create_dir_all(&work).expect("work directory");
     let (output, _incoming) = mpsc::channel(1);
 
-    let exit = start_stub(&program, Some(&work), output)
+    let exit = start_stub(&program, Some(&work), &[], output)
         .await
         .expect("the stub should start");
 
@@ -79,17 +79,10 @@ async fn an_environment_variable_reaches_the_process() {
     let directory = temp_dir("env");
     let program = write_stub(&directory, "env", Stub::Env);
     let (output, mut incoming) = mpsc::channel(8);
-    let command = [program.display().to_string()];
 
-    let exit = run_game(
-        &command,
-        None,
-        &[("LICHT_MARKER", "instances")],
-        LogCodec::Utf8,
-        output,
-    )
-    .await
-    .expect("the stub should start");
+    let exit = start_stub(&program, None, &[("LICHT_MARKER", "instances")], output)
+        .await
+        .expect("the stub should start");
 
     assert!(exit.succeeded());
     let lines = collect(&mut incoming);
@@ -108,12 +101,13 @@ fn temp_dir(name: &str) -> PathBuf {
 async fn start_stub(
     program: &Path,
     current_dir: Option<&Path>,
+    env: &[(&str, &str)],
     output: mpsc::Sender<GameLine>,
 ) -> licht_core::Result<licht_core::GameExit> {
     let command = [program.display().to_string()];
     let mut attempts = 0;
     loop {
-        match run_game(&command, current_dir, &[], LogCodec::Utf8, output.clone()).await {
+        match run_game(&command, current_dir, env, LogCodec::Utf8, output.clone()).await {
             Err(CoreError::Io(error))
                 if error.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 4 =>
             {
