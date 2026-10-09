@@ -4,6 +4,7 @@ mod asset_index;
 mod cache;
 mod download;
 mod error;
+mod install;
 mod version;
 mod version_manifest;
 
@@ -14,6 +15,7 @@ pub use download::{
     download_file,
 };
 pub use error::CoreError;
+pub use install::{ASSET_OBJECT_BASE, InstallPlan, install_version};
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,

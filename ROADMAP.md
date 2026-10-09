@@ -95,7 +95,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 - [x] **2.3** Directory structure and **shared cache** (libraries, assets by hash) outside instances.
   - 🛑 On-disk layout (compatible or not with the official `.minecraft`).
   - Use `directories` for per-OS paths.
-- [ ] **2.4** Version installer: given a version ID, downloads client.jar + libraries + assets and skips what is already valid.
+- [x] **2.4** Version installer: given a version ID, downloads client.jar + libraries + assets and skips what is already valid.
 
 **Done when:** installing the same version twice downloads everything the first time and nothing the second time.
 
