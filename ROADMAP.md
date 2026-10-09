@@ -120,7 +120,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 - [x] **4.1** Extraction of **natives** per platform into a temporary folder per run.
   - 📚 `zip`, I/O error handling.
-- [ ] **4.2** **Classpath** assembly (`;` separator on Windows, `:` on Linux) and the full command: JVM arguments + game arguments, with variable substitution (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
+- [x] **4.2** **Classpath** assembly (`;` separator on Windows, `:` on Linux) and the full command: JVM arguments + game arguments, with variable substitution (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
 - [ ] **4.3** Process execution (`std::process`/`tokio::process`), stdout/stderr capture, end/crash detection.
 - [ ] **4.4** Test CLI (`licht`) in `licht-core` (example/binary) with **offline auth for development only**.
   - 🛑 Whether offline mode stays restricted to dev builds or becomes a feature (implies legal/product decisions).
