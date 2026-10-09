@@ -289,6 +289,7 @@ pub async fn install_java(
                         url: files.raw.url.clone(),
                         destination: path.clone(),
                         sha1: files.raw.sha1.clone(),
+                        size: files.raw.size,
                     });
                 }
                 if *executable {
