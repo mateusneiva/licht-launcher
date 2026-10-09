@@ -8,20 +8,22 @@ workspace. [AGENTS.md](../AGENTS.md) defines the project rules;
 
 ## Layers
 
-| Location | Responsibility | Boundary |
-| --- | --- | --- |
+| Location            | Responsibility                                                                           | Boundary                                           |
+| ------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `crates/licht-core` | Minecraft manifests, rules, downloads, Java runtimes, game execution, and authentication | A standalone Rust library with no Tauri dependency |
-| `src-tauri` | Application startup, logging configuration, thin commands, and frontend events | Delegates game behavior to the core |
-| `src` | Screens, UI state, and calls to the Tauri adapter | Contains no Minecraft domain logic |
+| `src-tauri`         | Application startup, logging configuration, thin commands, and frontend events           | Delegates game behavior to the core                |
+| `src`               | Screens, UI state, and calls to the Tauri adapter                                        | Contains no Minecraft domain logic                 |
 
 The Cargo workspace contains `licht-core` and the `licht-launcher` application
-package. The application depends on the core through a local path dependency;
-its executable is `licht`.
+package. The application depends on the core through a local path dependency.
+The core also builds the `licht` command-line binary. That binary is the
+interface that can list, install, and launch today. The Tauri window does not
+call it yet.
 
-The foundation phase is complete. It opens an empty React window, ships the
-design system, and routes the frontend with TanStack Router. The core exposes
-its base error type, and the application initializes logging. Domain operations
-and their Tauri commands are not implemented yet.
+The foundation phase is complete: an empty React window, the design system,
+TanStack Router, logging, and `CoreError`. Domain work through milestone 1
+lives in the core and is reached from `licht`. Tauri commands and events are
+phase 5 and are not implemented.
 
 ## Communication
 
@@ -64,12 +66,22 @@ tokens, secrets, or personal data.
 ## Testing
 
 The core is testable independently with `cargo test -p licht-core`. Domain tests
-will use Mojang JSON fixtures and must not depend on network access. Frontend
+use saved Mojang JSON fixtures and must not depend on network access. Frontend
 tests use Vitest, Testing Library, and jsdom.
 
 CI runs Biome checks, TypeScript typechecking, frontend tests, Rust formatting,
 Clippy, Rust tests, and a Tauri release build on Windows and Ubuntu. Automated
 builds and tests are separate from manual graphical validation.
+
+## Data on disk
+
+The data directory comes from the `directories` crate
+(`app.licht` / `Licht` / `Licht Launcher`). On Windows that is under
+`%APPDATA%`. It holds `assets/indexes`, `assets/objects`, `libraries`,
+`natives/<version id>`, `runtime`, and `versions/<id>`. `assets/virtual/<index id>`
+is created when a `virtual` index is launched. `--cache` replaces this root.
+
+`instances/<id>` is the sibling of the data directory, not a folder inside it.
 
 ## Game directory
 
@@ -77,4 +89,4 @@ Each version keeps its saves next to the data directory, in `instances/<id>`.
 Versions that start through LaunchWrapper use `instances/<id>/.minecraft` so the
 folder the client reads before `--gameDir` is the instance. The race, the other
 launchers, and this choice are recorded in
-[LAUNCHWRAPPER.md](LAUNCHWRAPPER.md).
+[LAUNCHWRAPPER.md](core/LAUNCHWRAPPER.md).
