@@ -6,7 +6,7 @@ use sha1::{Digest, Sha1};
 use tokio::sync::mpsc;
 
 use crate::download::DownloadProgress;
-use crate::natives::native_classifier;
+use crate::natives::{classifier_matches, native_classifier};
 use crate::{
     AssetIndexFile, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadTask,
     JAVA_RUNTIME_INDEX_URL, JavaChoice, LaunchEnvironment, Result, SharedCache, Version,
@@ -249,6 +249,9 @@ fn download_tasks(cache: &SharedCache, plan: &InstallPlan<'_>) -> Result<Vec<Dow
     });
 
     for library in applicable_libraries(plan.version, plan.environment) {
+        if other_platform_native(&library.name, plan.environment) {
+            continue;
+        }
         let Some(downloads) = &library.downloads else {
             continue;
         };
@@ -285,6 +288,16 @@ fn download_tasks(cache: &SharedCache, plan: &InstallPlan<'_>) -> Result<Vec<Dow
     }
 
     Ok(tasks)
+}
+
+/// `natives-windows-x86` and `natives-linux` are other machines. The plain
+/// `natives-windows` name is the 64-bit jar for Windows.
+fn other_platform_native(name: &str, environment: &LaunchEnvironment) -> bool {
+    let Some(classifier) = name.split(':').nth(3) else {
+        return false;
+    };
+    classifier.starts_with("natives-")
+        && !classifier_matches(classifier, environment.os, environment.arch)
 }
 
 fn task_for_artifact(cache: &SharedCache, artifact: &crate::Artifact) -> Result<DownloadTask> {

@@ -99,7 +99,7 @@ fn modern_native<'a>(library: &'a Library, env: &LaunchEnvironment) -> Option<Na
     })
 }
 
-fn classifier_matches(classifier: &str, os: OsName, arch: Arch) -> bool {
+pub(crate) fn classifier_matches(classifier: &str, os: OsName, arch: Arch) -> bool {
     let Some(rest) = classifier.strip_prefix("natives-") else {
         return false;
     };
