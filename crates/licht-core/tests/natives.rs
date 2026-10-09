@@ -118,7 +118,7 @@ fn extraction_keeps_the_binary_and_drops_excluded_entries() {
 }
 
 #[test]
-fn a_nested_binary_lands_on_the_library_path() {
+fn a_nested_binary_lands_in_the_version_folder() {
     let root = std::env::temp_dir().join(format!("licht-natives-nested-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let cache = SharedCache::at(&root);
@@ -142,10 +142,11 @@ fn a_nested_binary_lands_on_the_library_path() {
     extract_natives(&cache, &version, &windows(), &destination).expect("extract");
 
     assert_eq!(
-        std::fs::read(destination.join("java").join("lwjgl.dll")).expect("dll"),
+        std::fs::read(destination.join("lwjgl.dll")).expect("dll"),
         b"nested-dll"
     );
-    assert!(!destination.join("java").join("MANIFEST.MF").exists());
+    assert!(!destination.join("java").exists());
+    assert!(!destination.join("windows").exists());
 }
 
 #[test]
@@ -192,25 +193,20 @@ fn a_path_outside_the_destination_is_rejected() {
 }
 
 #[test]
-fn natives_land_under_the_version_and_platform() {
+fn natives_land_under_the_version() {
     let root = std::env::temp_dir().join(format!("licht-natives-home-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let cache = SharedCache::at(&root);
-    let windows_dir = create_natives_directory(&cache, "1.5.2", &windows()).expect("windows");
-    let linux_dir =
-        create_natives_directory(&cache, "1.5.2", &environment(OsName::Linux, Arch::X86_64))
-            .expect("linux");
+    let directory = create_natives_directory(&cache, "26.3").expect("version folder");
 
+    assert_eq!(directory, root.join("natives").join("26.3"));
+    assert!(directory.is_dir());
     assert_eq!(
-        windows_dir,
-        root.join("natives").join("1.5.2").join("windows-x64")
+        create_natives_directory(&cache, "26.3").expect("same folder"),
+        directory
     );
-    assert_eq!(linux_dir, root.join("natives").join("1.5.2").join("linux"));
-    assert_ne!(windows_dir, linux_dir);
-    assert!(windows_dir.is_dir());
-    assert!(linux_dir.is_dir());
 
-    let error = create_natives_directory(&cache, "..", &windows()).expect_err("parent id");
+    let error = create_natives_directory(&cache, "..").expect_err("parent id");
     assert!(matches!(error, CoreError::CachePath));
     let _ = std::fs::remove_dir_all(root);
 }

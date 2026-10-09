@@ -3,8 +3,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    Arch, Argument, ArgumentValue, Artifact, CoreError, GameArguments, LaunchEnvironment, Library,
-    OsName, Result, SharedCache, Version, applicable_libraries, rules_allow, runtime_platform,
+    Arch, Artifact, CoreError, LaunchEnvironment, Library, OsName, Result, SharedCache, Version,
+    applicable_libraries,
 };
 
 pub struct NativeLibrary<'a> {
@@ -45,24 +45,12 @@ pub fn extract_natives(
         let path = cache.library(&library.artifact.path)?;
         extract_archive(&path, destination, library.exclude)?;
     }
-    // 1.21 looks at the natives root, where the DLL already sits.
-    // 26.3 looks at natives/java, while LWJGL 3.4 stores the DLL under windows/x64.
-    if let Some(relative) = library_path_suffix(version, env) {
-        let library_dir = under_destination(destination, &relative)?;
-        std::fs::create_dir_all(&library_dir)?;
-        copy_shared_libraries(destination, &library_dir)?;
-    }
     Ok(())
 }
 
-/// `natives/<version>/<platform>` inside the cache. The platform name matches the Java runtime.
-pub fn create_natives_directory(
-    cache: &SharedCache,
-    version_id: &str,
-    env: &LaunchEnvironment,
-) -> Result<PathBuf> {
-    let platform = runtime_platform(env.os, env.arch)?;
-    let path = cache.natives_dir(version_id, platform)?;
+/// `natives/<version>` inside the cache. Binaries for this machine are extracted here.
+pub fn create_natives_directory(cache: &SharedCache, version_id: &str) -> Result<PathBuf> {
+    let path = cache.natives_dir(version_id)?;
     std::fs::create_dir_all(&path)?;
     Ok(path)
 }
@@ -148,14 +136,13 @@ fn extract_archive(jar: &Path, destination: &Path, exclude: &[String]) -> Result
         let Some(relative) = entry.enclosed_name() else {
             return Err(CoreError::NativePath);
         };
-        if relative.as_os_str().is_empty() {
+        if !is_shared_library(&relative) {
+            continue;
+        }
+        let Some(file_name) = relative.file_name() else {
             return Err(CoreError::NativePath);
-        }
-        let target = destination.join(relative);
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut output = File::create(target)?;
+        };
+        let mut output = File::create(destination.join(file_name))?;
         io::copy(&mut entry, &mut output)?;
     }
     Ok(())
@@ -163,84 +150,6 @@ fn extract_archive(jar: &Path, destination: &Path, exclude: &[String]) -> Result
 
 fn is_excluded(name: &str, exclude: &[String]) -> bool {
     exclude.iter().any(|prefix| name.starts_with(prefix))
-}
-
-fn library_path_suffix(version: &Version, env: &LaunchEnvironment) -> Option<String> {
-    let GameArguments::Modern { jvm, .. } = &version.arguments else {
-        return None;
-    };
-    for argument in jvm {
-        for value in argument_values(argument, env) {
-            let Some(path) = value.strip_prefix("-Djava.library.path=") else {
-                continue;
-            };
-            let Some(relative) = path.strip_prefix("${natives_directory}") else {
-                continue;
-            };
-            let relative = relative.trim_start_matches(['/', '\\']);
-            if relative.is_empty() {
-                return None;
-            }
-            return Some(relative.to_string());
-        }
-    }
-    None
-}
-
-fn argument_values<'a>(argument: &'a Argument, env: &LaunchEnvironment) -> Vec<&'a str> {
-    match argument {
-        Argument::Literal(value) => vec![value.as_str()],
-        Argument::Conditional { rules, value } => {
-            if !rules_allow(Some(rules), env) {
-                return Vec::new();
-            }
-            match value {
-                ArgumentValue::Single(value) => vec![value.as_str()],
-                ArgumentValue::Many(parts) => parts.iter().map(String::as_str).collect(),
-            }
-        }
-    }
-}
-
-fn under_destination(destination: &Path, relative: &str) -> Result<PathBuf> {
-    let mut full = destination.to_path_buf();
-    for component in relative.split(['/', '\\']) {
-        if component.is_empty() || component == "." || component == ".." {
-            return Err(CoreError::NativePath);
-        }
-        full.push(component);
-    }
-    Ok(full)
-}
-
-fn copy_shared_libraries(root: &Path, library_dir: &Path) -> Result<()> {
-    for file in shared_libraries(root)? {
-        if file.starts_with(library_dir) {
-            continue;
-        }
-        let Some(name) = file.file_name() else {
-            continue;
-        };
-        std::fs::copy(&file, library_dir.join(name))?;
-    }
-    Ok(())
-}
-
-fn shared_libraries(root: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(directory) = pending.pop() {
-        for entry in std::fs::read_dir(&directory)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                pending.push(path);
-            } else if is_shared_library(&path) {
-                files.push(path);
-            }
-        }
-    }
-    Ok(files)
 }
 
 fn is_shared_library(path: &Path) -> bool {

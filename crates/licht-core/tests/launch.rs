@@ -210,6 +210,34 @@ fn an_unknown_placeholder_is_left_unchanged() {
 }
 
 #[test]
+fn a_java_library_suffix_points_at_the_version_folder() {
+    let version = parse_version(
+        r#"{"arguments":{"jvm":["-Djava.library.path=${natives_directory}/java"],"game":[]},"libraries":[],"assetIndex":{"id":"t","sha1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":1,"totalSize":1,"url":"https://example.invalid/i"},"mainClass":"a.B","downloads":{"client":{"sha1":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":1,"url":"https://example.invalid/c"}}}"#,
+    )
+    .expect("version");
+    let command = launch_command(
+        Path::new("runtime/java"),
+        &SharedCache::at("game-cache"),
+        "26.3",
+        &version,
+        &environment(OsName::Windows, Arch::X86_64),
+        &values(&[("natives_directory", "natives/26.3")]),
+    )
+    .expect("command");
+
+    assert!(
+        command
+            .iter()
+            .any(|arg| arg == "-Djava.library.path=natives/26.3")
+    );
+    assert!(
+        command
+            .iter()
+            .all(|arg| arg != "-Djava.library.path=natives/26.3/java")
+    );
+}
+
+#[test]
 fn an_invalid_version_id_is_rejected() {
     let version = parse_version(include_str!("fixtures/version-1.8.9.json")).expect("1.8.9");
     let error = classpath(
