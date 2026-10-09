@@ -3,8 +3,8 @@ use std::io::Write;
 use std::path::Path;
 
 use licht_core::{
-    Arch, Artifact, AssetIndex, CoreError, Download, GameArguments, LaunchEnvironment, Library,
-    LibraryDownloads, LibraryExtract, OsName, SharedCache, Version, VersionDownloads,
+    Arch, Argument, Artifact, AssetIndex, CoreError, Download, GameArguments, LaunchEnvironment,
+    Library, LibraryDownloads, LibraryExtract, OsName, SharedCache, Version, VersionDownloads,
     create_natives_directory, extract_natives, native_libraries, parse_version,
 };
 use zip::ZipWriter;
@@ -112,8 +112,66 @@ fn extraction_keeps_the_binary_and_drops_excluded_entries() {
         std::fs::read(destination.join("lwjgl.dll")).expect("dll"),
         b"from-the-native"
     );
+    assert!(!destination.join("java").exists());
     assert!(!destination.join("META-INF").join("MANIFEST.MF").exists());
     assert!(!destination.join("should-not-extract.txt").exists());
+}
+
+#[test]
+fn a_nested_binary_lands_on_the_library_path() {
+    let root = std::env::temp_dir().join(format!("licht-natives-nested-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let cache = SharedCache::at(&root);
+    let native_path = "org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3-natives-windows.jar";
+    write_zip(
+        &cache.library(native_path).expect("native path"),
+        &[
+            ("windows/x64/org/lwjgl/lwjgl.dll", b"nested-dll"),
+            ("META-INF/MANIFEST.MF", b"manifest"),
+        ],
+    );
+
+    let mut version = version_with(vec![modern_native_library(native_path)]);
+    version.arguments = GameArguments::Modern {
+        jvm: vec![Argument::Literal(
+            "-Djava.library.path=${natives_directory}/java".to_string(),
+        )],
+        game: Vec::new(),
+    };
+    let destination = root.join("run");
+    extract_natives(&cache, &version, &windows(), &destination).expect("extract");
+
+    assert_eq!(
+        std::fs::read(destination.join("java").join("lwjgl.dll")).expect("dll"),
+        b"nested-dll"
+    );
+    assert!(!destination.join("java").join("MANIFEST.MF").exists());
+}
+
+#[test]
+fn a_root_binary_stays_when_the_library_path_is_the_natives_root() {
+    let root = std::env::temp_dir().join(format!("licht-natives-root-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let cache = SharedCache::at(&root);
+    let native_path = "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows.jar";
+    write_zip(
+        &cache.library(native_path).expect("native path"),
+        &[("lwjgl.dll", b"root-dll")],
+    );
+    let mut version = version_with(vec![modern_native_library(native_path)]);
+    version.arguments = GameArguments::Modern {
+        jvm: vec![Argument::Literal(
+            "-Djava.library.path=${natives_directory}".to_string(),
+        )],
+        game: Vec::new(),
+    };
+    let destination = root.join("run");
+    extract_natives(&cache, &version, &windows(), &destination).expect("extract");
+    assert_eq!(
+        std::fs::read(destination.join("lwjgl.dll")).expect("dll"),
+        b"root-dll"
+    );
+    assert!(!destination.join("java").exists());
 }
 
 #[test]
@@ -177,6 +235,21 @@ fn native_library(path: &str) -> Library {
             "windows".to_string(),
             "natives-windows".to_string(),
         )])),
+        rules: None,
+        extract: Some(LibraryExtract {
+            exclude: vec!["META-INF/".to_string()],
+        }),
+    }
+}
+
+fn modern_native_library(path: &str) -> Library {
+    Library {
+        name: "org.lwjgl:lwjgl:3.4.3:natives-windows".to_string(),
+        downloads: Some(LibraryDownloads {
+            artifact: Some(artifact(path)),
+            classifiers: None,
+        }),
+        natives: None,
         rules: None,
         extract: Some(LibraryExtract {
             exclude: vec!["META-INF/".to_string()],
