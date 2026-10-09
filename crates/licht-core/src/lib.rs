@@ -38,7 +38,7 @@ pub use offline::{
     LaunchArgs, OfflineAccount, OfflineLaunch, offline_account, parse_launch_args,
     prepare_offline_launch,
 };
-pub use run::{GameExit, GameLine, OutputStream, run_game};
+pub use run::{GameExit, GameLine, LogCodec, OutputStream, log_codec, run_game};
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,

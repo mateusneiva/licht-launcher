@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use licht_core::{CoreError, GameLine, OutputStream, run_game};
+use licht_core::{CoreError, GameLine, LogCodec, OutputStream, run_game};
 use tokio::sync::mpsc;
 
 #[tokio::test]
@@ -45,11 +45,13 @@ async fn a_failing_process_still_delivers_its_output() {
 #[tokio::test]
 async fn an_empty_command_is_rejected() {
     let (output, _incoming) = mpsc::channel(1);
-    let missing = run_game(&[], None, &[], output).await.expect_err("empty");
+    let missing = run_game(&[], None, &[], LogCodec::Utf8, output)
+        .await
+        .expect_err("empty");
     assert!(matches!(missing, CoreError::GameCommand));
 
     let (output, _incoming) = mpsc::channel(1);
-    let blank = run_game(&[String::new()], None, &[], output)
+    let blank = run_game(&[String::new()], None, &[], LogCodec::Utf8, output)
         .await
         .expect_err("blank");
     assert!(matches!(blank, CoreError::GameCommand));
@@ -79,9 +81,15 @@ async fn an_environment_variable_reaches_the_process() {
     let (output, mut incoming) = mpsc::channel(8);
     let command = [program.display().to_string()];
 
-    let exit = run_game(&command, None, &[("LICHT_MARKER", "instances")], output)
-        .await
-        .expect("the stub should start");
+    let exit = run_game(
+        &command,
+        None,
+        &[("LICHT_MARKER", "instances")],
+        LogCodec::Utf8,
+        output,
+    )
+    .await
+    .expect("the stub should start");
 
     assert!(exit.succeeded());
     let lines = collect(&mut incoming);
@@ -105,7 +113,7 @@ async fn start_stub(
     let command = [program.display().to_string()];
     let mut attempts = 0;
     loop {
-        match run_game(&command, current_dir, &[], output.clone()).await {
+        match run_game(&command, current_dir, &[], LogCodec::Utf8, output.clone()).await {
             Err(CoreError::Io(error))
                 if error.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 4 =>
             {

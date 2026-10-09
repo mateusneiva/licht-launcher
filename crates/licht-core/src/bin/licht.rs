@@ -4,9 +4,9 @@ use std::time::{Duration, Instant};
 
 use licht_core::{
     ASSET_OBJECT_BASE, Arch, CoreError, GameInstall, LaunchEnvironment, OsName, OutputStream,
-    SharedCache, fetch_version_manifest, install_game, installed_java, offline_account,
+    SharedCache, fetch_version_manifest, install_game, installed_java, log_codec, offline_account,
     parse_install_args, parse_launch_args, parse_version, parse_versions_args,
-    prepare_offline_launch, run_game, version_lines,
+    prepare_offline_launch, probe_java_major, required_java_major, run_game, version_lines,
 };
 use tokio::sync::mpsc;
 
@@ -151,10 +151,17 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
     let json = std::fs::read_to_string(cache.version_json(&args.version_id)?)?;
     let version = parse_version(&json)?;
     let environment = host_environment()?;
+    let custom_java = args.java.is_some();
     let java = match args.java {
         Some(path) => path,
         None => installed_java(&cache, &args.version_id, &version, &environment)?,
     };
+    let major = if custom_java {
+        probe_java_major(&java)?
+    } else {
+        required_java_major(&args.version_id, &version)
+    };
+    let codec = log_codec(major);
     let account = offline_account(&args.username)?;
     let instance = match args.game_directory {
         Some(path) => path,
@@ -183,7 +190,7 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
         if let Some(path) = &appdata {
             env.push(("APPDATA", path.as_str()));
         }
-        run_game(&command, Some(&game_directory), &env, output).await
+        run_game(&command, Some(&game_directory), &env, codec, output).await
     });
     while let Some(line) = incoming.recv().await {
         match line.stream {
