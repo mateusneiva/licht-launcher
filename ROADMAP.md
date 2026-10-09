@@ -87,15 +87,15 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 **Goal:** download everything in a way that is fast, verified, and resumable.
 
-- [ ] **2.1** Single-file downloader: stream to disk, **SHA1 verification**, atomic write (`.part` → rename), retry with backoff.
+- [x] **2.1** Single-file downloader: stream to disk, **SHA1 verification**, atomic write (`.part` → rename), retry with backoff.
   - 📚 Buffer ownership, `Path`/`PathBuf`, `AsyncRead`.
-- [ ] **2.2** Parallel queue with a concurrency limit (e.g. 8-16) and progress aggregation.
+- [x] **2.2** Parallel queue with a concurrency limit (e.g. 8-16) and progress aggregation.
   - 🛑 Default concurrency limit and retry policy.
   - 📚 `tokio::spawn`, `Semaphore`, channels (`mpsc`).
-- [ ] **2.3** Directory structure and **shared cache** (libraries, assets by hash) outside instances.
+- [x] **2.3** Directory structure and **shared cache** (libraries, assets by hash) outside instances.
   - 🛑 On-disk layout (compatible or not with the official `.minecraft`).
   - Use `directories` for per-OS paths.
-- [ ] **2.4** Version installer: given a version ID, downloads client.jar + libraries + assets and skips what is already valid.
+- [x] **2.4** Version installer: given a version ID, downloads client.jar + libraries + assets and skips what is already valid.
 
 **Done when:** installing the same version twice downloads everything the first time and nothing the second time.
 
@@ -105,7 +105,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 **Goal:** have the right Java for each game version, without the user installing anything.
 
-- [ ] **3.1** Discover the required runtime (`javaVersion` from the version JSON).
+- [x] **3.1** Discover the required runtime (`javaVersion` from the version JSON).
 - [ ] **3.2** Download and install the Mojang runtime (`java-runtime` manifest) or Adoptium/Temurin.
   - 🛑 Which source to use by default and whether the user can point to their own Java.
 - [ ] **3.3** Detect already installed Javas (optional) and validate the version.
