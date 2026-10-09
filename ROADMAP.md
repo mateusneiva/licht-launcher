@@ -77,7 +77,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
   - 🛑 Strategy for versions with the old format (`minecraftArguments`) vs the new one (`arguments`).
 - [x] **1.3** **`rules`** evaluator (os/arch/features) with tests covering Windows, Linux, and different architectures.
   - 📚 `match`, `Option`, simple traits.
-- [ ] **1.4** Types and reading of the **asset index**.
+- [x] **1.4** Types and reading of the **asset index**.
 
 **Done when:** a test loads the JSON of any fixture version and lists the libraries that apply to the current OS.
 
