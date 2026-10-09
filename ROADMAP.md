@@ -108,7 +108,7 @@ The codename appears on the About screen, in the GitHub release title, and in th
 - [x] **3.1** Discover the required runtime (`javaVersion` from the version JSON).
 - [x] **3.2** Download and install the Mojang runtime (`java-runtime` manifest) or Adoptium/Temurin.
   - 🛑 Which source to use by default and whether the user can point to their own Java.
-- [ ] **3.3** Detect already installed Javas (optional) and validate the version.
+- [x] **3.3** Detect already installed Javas (optional) and validate the version.
 
 **Done when:** asking for "1.21" and "1.8" results in two distinct, correct, usable runtimes.
 
@@ -118,9 +118,9 @@ The codename appears on the About screen, in the GitHub release title, and in th
 
 **Goal:** open Minecraft.
 
-- [ ] **4.1** Extraction of **natives** per platform into a temporary folder per run.
+- [x] **4.1** Extraction of **natives** per platform into a temporary folder per run.
   - 📚 `zip`, I/O error handling.
-- [ ] **4.2** **Classpath** assembly (`;` separator on Windows, `:` on Linux) and the full command: JVM arguments + game arguments, with variable substitution (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
+- [x] **4.2** **Classpath** assembly (`;` separator on Windows, `:` on Linux) and the full command: JVM arguments + game arguments, with variable substitution (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
 - [ ] **4.3** Process execution (`std::process`/`tokio::process`), stdout/stderr capture, end/crash detection.
 - [ ] **4.4** Test CLI (`licht`) in `licht-core` (example/binary) with **offline auth for development only**.
   - 🛑 Whether offline mode stays restricted to dev builds or becomes a feature (implies legal/product decisions).

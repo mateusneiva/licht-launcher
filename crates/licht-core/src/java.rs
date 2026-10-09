@@ -19,6 +19,103 @@ pub fn required_runtime(version: &Version) -> Option<&crate::JavaVersion> {
     version.java_version.as_ref()
 }
 
+const JAVA_SEARCH_DEPTH: u32 = 4;
+
+pub fn java_binary_name(os: OsName) -> &'static str {
+    match os {
+        OsName::Windows => "java.exe",
+        OsName::Linux | OsName::Osx => "java",
+    }
+}
+
+/// Usual install directories. A missing directory is not an error.
+pub fn default_java_roots(os: OsName) -> &'static [&'static str] {
+    match os {
+        OsName::Windows => &[
+            r"C:\Program Files\Java",
+            r"C:\Program Files\Eclipse Adoptium",
+            r"C:\Program Files\Microsoft",
+            r"C:\Program Files\BellSoft",
+            r"C:\Program Files\Zulu",
+        ],
+        OsName::Linux => &["/usr/lib/jvm", "/usr/java"],
+        OsName::Osx => &[
+            "/Library/Java/JavaVirtualMachines",
+            "/System/Library/Java/JavaVirtualMachines",
+        ],
+    }
+}
+
+/// Major version printed by `java -version`.
+///
+/// Java 8 reports `1.8.0_51`. Java 9 and later report `21.0.7`.
+pub fn parse_java_version(output: &str) -> Result<u32> {
+    for line in output.lines() {
+        let Some(version) = quoted_version(line) else {
+            continue;
+        };
+        return major_from_version(version);
+    }
+    Err(CoreError::JavaProbe)
+}
+
+pub fn probe_java_major(executable: &Path) -> Result<u32> {
+    let output = std::process::Command::new(executable)
+        .arg("-version")
+        .output()?;
+    if !output.status.success() {
+        return Err(CoreError::JavaProbe);
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let text = if stderr.trim().is_empty() {
+        stdout
+    } else {
+        stderr
+    };
+    parse_java_version(&text)
+}
+
+pub fn validate_java(executable: &Path, required: &crate::JavaVersion) -> Result<u32> {
+    let found = probe_java_major(executable)?;
+    if found != required.major_version {
+        return Err(CoreError::JavaMajor {
+            found,
+            required: required.major_version,
+        });
+    }
+    Ok(found)
+}
+
+/// `java` / `java.exe` under each root, including the usual `bin` and macOS `.jdk` layouts.
+pub fn discover_javas(roots: &[PathBuf], os: OsName) -> Vec<PathBuf> {
+    let name = java_binary_name(os);
+    let mut found = Vec::new();
+    for root in roots {
+        collect_javas(root, name, 0, &mut found);
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// First executable whose major version equals `required`. Others are skipped.
+pub fn matching_java(executables: &[PathBuf], required: &crate::JavaVersion) -> Option<PathBuf> {
+    for executable in executables {
+        match probe_java_major(executable) {
+            Ok(major) if major == required.major_version => return Some(executable.clone()),
+            Ok(_) => {}
+            Err(error) => {
+                tracing::warn!(
+                    path = %executable.display(),
+                    "installed Java could not be read: {error}"
+                );
+            }
+        }
+    }
+    None
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct JavaRuntimeIndex {
     #[serde(flatten)]
@@ -302,6 +399,61 @@ fn place_link(link: &Path, target: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn quoted_version(line: &str) -> Option<&str> {
+    let marker = "version \"";
+    let start = line.find(marker)? + marker.len();
+    let rest = line.get(start..)?;
+    let end = rest.find('"')?;
+    rest.get(..end)
+}
+
+fn major_from_version(version: &str) -> Result<u32> {
+    let mut parts = version.split('.');
+    let Some(first) = parts.next().filter(|part| !part.is_empty()) else {
+        return Err(CoreError::JavaProbe);
+    };
+    let component = if first == "1" {
+        parts.next().ok_or(CoreError::JavaProbe)?
+    } else {
+        first
+    };
+    let digits: String = component
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .collect();
+    if digits.is_empty() {
+        return Err(CoreError::JavaProbe);
+    }
+    digits.parse().map_err(|_| CoreError::JavaProbe)
+}
+
+fn collect_javas(dir: &Path, name: &str, depth: u32, found: &mut Vec<PathBuf>) {
+    let candidate = dir.join(name);
+    if candidate.is_file() {
+        found.push(candidate);
+    }
+    if depth == JAVA_SEARCH_DEPTH {
+        return;
+    }
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
+        Err(error) => {
+            tracing::warn!(path = %dir.display(), "Java directory could not be read: {error}");
+            return;
+        }
+    };
+    for entry in entries {
+        let Ok(entry) = entry else {
+            continue;
+        };
+        let path = entry.path();
+        if path.is_dir() {
+            collect_javas(&path, name, depth + 1, found);
+        }
+    }
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
