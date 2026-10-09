@@ -1,0 +1,96 @@
+use std::path::{Path, PathBuf};
+
+use crate::{CoreError, Result};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SharedCache {
+    root: PathBuf,
+}
+
+impl SharedCache {
+    pub fn at(root: impl Into<PathBuf>) -> Self {
+        Self { root: root.into() }
+    }
+
+    pub fn system() -> Result<Self> {
+        let directories = directories::ProjectDirs::from("app.licht", "Licht", "Licht Launcher")
+            .ok_or(CoreError::DataDirectory)?;
+        Ok(Self::at(directories.data_dir()))
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn create(&self) -> Result<()> {
+        for relative in ["assets/indexes", "assets/objects", "libraries", "versions"] {
+            std::fs::create_dir_all(self.relative(relative)?)?;
+        }
+        Ok(())
+    }
+
+    pub fn asset_object(&self, hash: &str) -> Result<PathBuf> {
+        let hash = hash.to_ascii_lowercase();
+        if hash.len() != 40 || !hash.chars().all(|character| character.is_ascii_hexdigit()) {
+            return Err(CoreError::CachePath);
+        }
+        Ok(self
+            .root
+            .join("assets")
+            .join("objects")
+            .join(&hash[..2])
+            .join(hash))
+    }
+
+    pub fn asset_index(&self, id: &str) -> Result<PathBuf> {
+        let name = single_component(id)?;
+        Ok(self
+            .root
+            .join("assets")
+            .join("indexes")
+            .join(format!("{name}.json")))
+    }
+
+    pub fn library(&self, artifact_path: &str) -> Result<PathBuf> {
+        self.relative(&format!("libraries/{artifact_path}"))
+    }
+
+    pub fn version_jar(&self, id: &str) -> Result<PathBuf> {
+        let name = single_component(id)?;
+        Ok(self
+            .root
+            .join("versions")
+            .join(&name)
+            .join(format!("{name}.jar")))
+    }
+
+    pub fn version_json(&self, id: &str) -> Result<PathBuf> {
+        let name = single_component(id)?;
+        Ok(self
+            .root
+            .join("versions")
+            .join(&name)
+            .join(format!("{name}.json")))
+    }
+
+    fn relative(&self, path: &str) -> Result<PathBuf> {
+        if path.is_empty() {
+            return Err(CoreError::CachePath);
+        }
+        let mut full = self.root.clone();
+        for component in path.split(['/', '\\']) {
+            if component.is_empty() || component == "." || component == ".." {
+                return Err(CoreError::CachePath);
+            }
+            full.push(component);
+        }
+        Ok(full)
+    }
+}
+
+fn single_component(name: &str) -> Result<String> {
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name == "." || name == ".." {
+        return Err(CoreError::CachePath);
+    }
+    Ok(name.to_string())
+}

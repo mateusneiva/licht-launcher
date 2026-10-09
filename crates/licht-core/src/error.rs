@@ -22,6 +22,10 @@ pub enum CoreError {
     DownloadAttempts,
     #[error("download concurrency must be at least 1")]
     DownloadConcurrency,
+    #[error("could not resolve the Licht data directory")]
+    DataDirectory,
+    #[error("cache path is invalid")]
+    CachePath,
 }
 
 #[cfg(test)]
