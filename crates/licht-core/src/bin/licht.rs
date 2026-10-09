@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use licht_core::{
     ASSET_OBJECT_BASE, Arch, CoreError, GameInstall, LaunchEnvironment, OsName, OutputStream,
-    SharedCache, fetch_version_manifest, install_game, offline_account, parse_install_args,
-    parse_launch_args, parse_version, prepare_offline_launch, run_game,
+    SharedCache, fetch_version_manifest, install_game, installed_java, offline_account,
+    parse_install_args, parse_launch_args, parse_version, parse_versions_args,
+    prepare_offline_launch, run_game, version_lines,
 };
 use tokio::sync::mpsc;
 
@@ -28,6 +29,7 @@ async fn run() -> licht_core::Result<i32> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("launch") => launch(&args).await,
+        Some("versions") => versions(&args).await,
         Some("install") => {
             install(&args).await?;
             Ok(0)
@@ -105,6 +107,18 @@ async fn install(args: &[String]) -> licht_core::Result<()> {
     Ok(())
 }
 
+async fn versions(args: &[String]) -> licht_core::Result<i32> {
+    let args = parse_versions_args(args)?;
+    if let Some(root) = &args.cache {
+        let _cache = SharedCache::at(root);
+    }
+    let manifest = fetch_version_manifest(&reqwest::Client::new()).await?;
+    for line in version_lines(&manifest) {
+        println!("{line}");
+    }
+    Ok(0)
+}
+
 async fn launch(args: &[String]) -> licht_core::Result<i32> {
     let args = parse_launch_args(args)?;
     let cache = match &args.cache {
@@ -113,13 +127,18 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
     };
     let json = std::fs::read_to_string(cache.version_json(&args.version_id)?)?;
     let version = parse_version(&json)?;
+    let environment = host_environment()?;
+    let java = match args.java {
+        Some(path) => path,
+        None => installed_java(&cache, &version, &environment)?,
+    };
     let account = offline_account(&args.username)?;
     let command = prepare_offline_launch(
-        &args.java,
+        &java,
         &cache,
         &args.version_id,
         &version,
-        &host_environment()?,
+        &environment,
         &account,
         &args.game_directory,
     )?;

@@ -36,7 +36,7 @@ pub fn offline_account(username: &str) -> Result<OfflineAccount> {
 pub struct LaunchArgs {
     pub version_id: String,
     pub username: String,
-    pub java: PathBuf,
+    pub java: Option<PathBuf>,
     pub game_directory: PathBuf,
     pub cache: Option<PathBuf>,
 }
@@ -78,9 +78,6 @@ pub fn parse_launch_args(args: &[String]) -> Result<LaunchArgs> {
     if username.is_empty() {
         return Err(CoreError::OfflineName);
     }
-    let Some(java) = java else {
-        return Err(CoreError::LaunchArgs);
-    };
     let Some(game_directory) = game_directory else {
         return Err(CoreError::LaunchArgs);
     };

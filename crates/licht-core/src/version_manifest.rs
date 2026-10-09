@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
 use serde::Deserialize;
 
-use crate::Result;
+use crate::{CoreError, Result};
 
 pub const VERSION_MANIFEST_URL: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -39,17 +41,89 @@ pub enum VersionType {
     OldAlpha,
 }
 
+pub fn version_type_name(version_type: &VersionType) -> &'static str {
+    match version_type {
+        VersionType::Release => "release",
+        VersionType::Snapshot => "snapshot",
+        VersionType::OldBeta => "old_beta",
+        VersionType::OldAlpha => "old_alpha",
+    }
+}
+
+pub fn version_lines(manifest: &VersionManifest) -> Vec<String> {
+    manifest
+        .versions
+        .iter()
+        .map(|version| {
+            format!(
+                "{} {}",
+                version.id,
+                version_type_name(&version.version_type)
+            )
+        })
+        .collect()
+}
+
+#[derive(Debug)]
+pub struct VersionsArgs {
+    pub cache: Option<PathBuf>,
+}
+
+pub fn parse_versions_args(args: &[String]) -> Result<VersionsArgs> {
+    if args.first().map(String::as_str) != Some("versions") {
+        return Err(CoreError::LaunchArgs);
+    }
+
+    let mut cache = None;
+    let mut rest = args[1..].iter();
+    while let Some(flag) = rest.next() {
+        let Some(value) = rest.next() else {
+            return Err(CoreError::LaunchArgs);
+        };
+        if value.starts_with("--") {
+            return Err(CoreError::LaunchArgs);
+        }
+        match flag.as_str() {
+            "--cache" => cache = Some(PathBuf::from(value)),
+            _ => return Err(CoreError::LaunchArgs),
+        }
+    }
+    Ok(VersionsArgs { cache })
+}
+
 pub fn parse_version_manifest(json: &str) -> Result<VersionManifest> {
     Ok(serde_json::from_str(json)?)
 }
 
 pub async fn fetch_version_manifest(client: &reqwest::Client) -> Result<VersionManifest> {
-    let body = client
-        .get(VERSION_MANIFEST_URL)
-        .send()
-        .await?
-        .error_for_status()?
-        .text()
-        .await?;
+    let body = read_text(client, VERSION_MANIFEST_URL).await?;
     parse_version_manifest(&body)
+}
+
+async fn read_text(client: &reqwest::Client, url: &str) -> Result<String> {
+    let mut last_error = None;
+    for _ in 0..3 {
+        let response = match client.get(url).send().await {
+            Ok(response) => response,
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        };
+        let response = match response.error_for_status() {
+            Ok(response) => response,
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        };
+        match response.text().await {
+            Ok(text) => return Ok(text),
+            Err(error) => last_error = Some(error),
+        }
+    }
+    match last_error {
+        Some(error) => Err(error.into()),
+        None => Err(CoreError::VersionMissing),
+    }
 }
