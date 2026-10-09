@@ -42,6 +42,12 @@ pub enum CoreError {
     NativePath,
     #[error("game command is empty")]
     GameCommand,
+    #[error("offline username is empty")]
+    OfflineName,
+    #[error("launch arguments are incomplete")]
+    LaunchArgs,
+    #[error("this system is not supported for launch")]
+    LaunchHost,
 }
 
 #[cfg(test)]
