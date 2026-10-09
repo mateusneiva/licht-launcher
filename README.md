@@ -7,10 +7,12 @@ built with Tauri v2, React, TypeScript, and Rust.
 
 ## Project status
 
-Early development. The current foundation opens an empty desktop window and
-includes a standalone Rust core, structured logging, typed core errors, frontend
-tests, and Windows/Ubuntu CI. Game installation, game launching, and account
-authentication are planned in the [roadmap](ROADMAP.md).
+Early development. The foundation phase is complete: an empty desktop window, a
+standalone Rust core, structured logging, typed core errors, the design system,
+TanStack Router with file routes under `src/routes`, frontend tests, and
+Windows/Ubuntu CI. The style guide is at `/#/styleguide` when
+`VITE_SHOW_STYLEGUIDE=true` (see `.env.example`). Game installation, game
+launching, and account authentication are planned in the [roadmap](ROADMAP.md).
 
 ## Prerequisites
 

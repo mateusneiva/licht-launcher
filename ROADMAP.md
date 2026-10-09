@@ -1,236 +1,238 @@
 # ROADMAP: Licht Launcher
 
-Launcher não oficial de Minecraft: Java Edition para **Windows e Linux**, feito com Tauri v2 (Rust + TypeScript).
+Unofficial Minecraft: Java Edition launcher for **Windows and Linux**, built with Tauri v2 (Rust + TypeScript).
 
-**Stack do frontend:** React + TypeScript + Vite, Tailwind CSS, shadcn/ui (Radix UI), Lucide (ícones), TanStack Query (chamadas ao Rust), Zustand (estado global), TanStack Virtual (listas grandes), Vitest + Testing Library (testes).
+**Frontend stack:** React + TypeScript + Vite, Tailwind CSS, shadcn/ui (Radix UI), Lucide (icons), TanStack Router (file-based routes, hash history), Vitest + Testing Library (tests). Planned, not installed yet: TanStack Query (calls to Rust), Zustand (global state), TanStack Virtual (large lists).
 
-> **Como usar:** peça sempre **um item por vez** ("faça o item 3.2"). Fluxo de cada item: **plano → aprovação → implementação → PR → revisão**. Siga o `CLAUDE.md`.
+> **How to use:** always ask for **one item at a time** ("do item 3.2"). Flow for each item: **plan → approval → implementation → PR → review**. Follow `CLAUDE.md`.
 
-Legenda: `[ ]` pendente · `[x]` feito · 🛑 = decisão que exige aprovação explícita antes de codar · 📚 = conceitos de Rust que aparecem
+Legend: `[ ]` pending · `[x]` done · 🛑 = decision that requires explicit approval before coding · 📚 = Rust concepts that show up
 
 ---
 
-## Identidade e convenções
+## Identity and conventions
 
-| Item | Valor |
+| Item | Value |
 |---|---|
-| Nome exibido | **Licht Launcher** (*Licht* = "luz" em alemão; pronúncia adotada: "líkt") |
-| Repositório / pacotes | `licht-launcher` |
-| Binário / comando | `licht` |
-| Crate do core | `licht-core` |
-| Símbolo (logo) | um lírio feito de luz |
-| Aviso obrigatório | "Projeto não oficial, não afiliado à Mojang Studios nem à Microsoft" |
+| Display name | **Licht Launcher** (*Licht* = "light" in German; adopted pronunciation: "líkt") |
+| Repository / packages | `licht-launcher` |
+| Binary / command | `licht` |
+| Core crate | `licht-core` |
+| Symbol (logo) | a lily made of light |
+| Required notice | "Unofficial project, not affiliated with Mojang Studios or Microsoft" |
 
-> 🛑 Antes do item 0.1: confirmar domínio (ex.: `licht.app`, `getlicht.com`, ou um `.com.br` no registro.br) e o *bundle identifier* do app (ex.: `app.licht.launcher`).
+> 🛑 Before item 0.1: confirm the domain (e.g. `licht.app`, `getlicht.com`, or a `.com.br` at registro.br) and the app *bundle identifier* (e.g. `app.licht.launcher`).
 
-### Codinomes de versão
+### Version codenames
 
-Cada release `0.x` recebe o nome de uma flor, em alemão, nesta ordem:
+Each `0.x` release gets the name of a flower, in German, in this order:
 
-| Versão | Codinome | Significado |
+| Version | Codename | Meaning |
 |---|---|---|
-| 0.1 | **Lilie** | lírio |
-| 0.2 | **Iris** | íris |
-| 0.3 | **Rose** | rosa |
-| 0.4 | **Immergrün** | vinca |
-| 0.5 | **Anemone** | anêmona |
-| 0.6 | **Narzisse** | narciso |
-| 0.7 | **Edelweiß** | edelvais |
+| 0.1 | **Lilie** | lily |
+| 0.2 | **Iris** | iris |
+| 0.3 | **Rose** | rose |
+| 0.4 | **Immergrün** | periwinkle |
+| 0.5 | **Anemone** | anemone |
+| 0.6 | **Narzisse** | daffodil |
+| 0.7 | **Edelweiß** | edelweiss |
 
-O codinome aparece na tela "Sobre", no título da release no GitHub e no nome do instalador (ex.: `Licht-Launcher-0.1.0-Lilie`). A partir da 0.8, a lista continua (🛑 definir juntos).
-
----
-
-## Fase 0. Fundação
-
-**Objetivo:** repositório pronto, com qualidade automatizada desde o primeiro commit.
-
-- [ ] **0.1** Criar o workspace: `crates/licht-core` (lib), `src-tauri` (app), `src/` (frontend TS + Vite).
-  - 🛑 Gerenciador de pacotes (pnpm) e estrutura de pastas do frontend (`src/components/ui`, `src/features/*`, `src/lib`).
-  - 📚 Cargo workspace, crates lib vs bin.
-- [x] **0.2** Tooling: `rustfmt`, `clippy -D warnings`, Biome (lint e formatação), TypeScript estrito, Vitest + Testing Library.
-- [x] **0.3** CI (GitHub Actions) com matriz **windows-latest + ubuntu-latest**: fmt, clippy, testes Rust e frontend, build do Tauri.
-- [x] **0.4** Estrutura de logs (`tracing`) e tipo de erro base (`thiserror`) no core.
-  - 📚 `Result`, o operador `?`, `thiserror` vs `anyhow`.
-- [x] **0.5** `ARCHITECTURE.md` curto descrevendo as camadas (core / tauri / frontend).
-- [x] **0.6** Licença do projeto e aviso de "não oficial" no README.
-  - 🛑 Licença (MIT, Apache-2.0, GPL...).
-- [ ] **0.7** **Design system base**: Tailwind + shadcn/ui configurados, **tokens de design** (cores, raios, espaçamento, tipografia) como variáveis CSS num único arquivo, tema claro/escuro, ícones Lucide e componentes-base (Button, Input, Dialog, Tabs, Progress, Toast, Select, Tooltip, ScrollArea). Página `/styleguide` (somente em dev) mostrando todos eles.
-  - 🛑 **Versão do Tailwind (v3 ou v4):** testar em WebKitGTK mais antigo (ex.: Ubuntu 22.04) antes de decidir. Se houver problema, usar v3.
-  - 🛑 Direção visual: paleta, tipografia, claro/escuro, nível de minimalismo (ponto de partida: lírio de luz, tons suaves).
-  - Evitar efeitos pesados (`backdrop-filter`, blurs e sombras grandes) por causa do WebKitGTK no Linux.
-
-**Pronto quando:** o app Tauri abre uma janela vazia em Windows e Linux, o CI passa verde e a página `/styleguide` renderiza igual nos dois sistemas.
+The codename appears on the About screen, in the GitHub release title, and in the installer name (e.g. `Licht-Launcher-0.1.0-Lilie`). From 0.8 on, the list continues (🛑 define together).
 
 ---
 
-## Fase 1. Dados da Mojang (parsing)
+## Phase 0. Foundation — closed
 
-**Objetivo:** ler e entender os manifestos, sem rede nos testes.
+**Goal:** repository ready, with automated quality from the first commit.
 
-- [ ] **1.1** Tipos `serde` para `version_manifest_v2` + cliente HTTP (`reqwest`) para buscá-lo.
-  - Fixture: salvar um manifesto real em `tests/fixtures`.
-  - 📚 `serde`, `struct`/`enum`, `async/await` com `tokio`.
-- [ ] **1.2** Tipos para o **JSON de uma versão** (libraries, arguments, assetIndex, mainClass, downloads, javaVersion). Testar com fixtures de versões antigas (ex.: 1.8, 1.12) e novas (1.20+, 1.21).
-  - 🛑 Estratégia para versões com formato antigo (`minecraftArguments`) vs novo (`arguments`).
-- [ ] **1.3** Avaliador de **`rules`** (os/arch/features) com testes cobrindo Windows, Linux e arquiteturas diferentes.
-  - 📚 `match`, `Option`, traits simples.
-- [ ] **1.4** Tipos e leitura do **asset index**.
+- [x] **0.1** Create the workspace: `crates/licht-core` (lib), `src-tauri` (app), `src/` (TS + Vite frontend).
+  - 🛑 Package manager (pnpm) and frontend folder structure (`src/routes`, `src/components/ui`, `src/features/*`, `src/lib`).
+  - 📚 Cargo workspace, lib vs bin crates.
+- [x] **0.2** Tooling: `rustfmt`, `clippy -D warnings`, Biome (lint and formatting), strict TypeScript, Vitest + Testing Library.
+- [x] **0.3** CI (GitHub Actions) with a **windows-latest + ubuntu-latest** matrix: fmt, clippy, Rust and frontend tests, Tauri build.
+- [x] **0.4** Logging structure (`tracing`) and base error type (`thiserror`) in the core.
+  - 📚 `Result`, the `?` operator, `thiserror` vs `anyhow`.
+- [x] **0.5** Short `ARCHITECTURE.md` describing the layers (core / tauri / frontend).
+- [x] **0.6** Project license and "unofficial" notice in the README.
+  - 🛑 License (MIT, Apache-2.0, GPL...).
+- [x] **0.7** **Base design system**: Tailwind + shadcn/ui configured, **design tokens** (colors, radii, spacing, typography) as CSS variables in a single file, light/dark theme, Lucide icons, and base components (Button, Input, Dialog, Tabs, Progress, Toast, Select, Tooltip, ScrollArea). Page `/#/styleguide`, visible only with `VITE_SHOW_STYLEGUIDE=true`, showing all of them.
+  - 🛑 **Tailwind version (v3 or v4):** test on an older WebKitGTK (e.g. Ubuntu 22.04) before deciding. If there is a problem, use v3.
+  - 🛑 Visual direction: palette, typography, light/dark, level of minimalism (starting point: lily of light, soft tones).
+  - Avoid heavy effects (`backdrop-filter`, blurs, and large shadows) because of WebKitGTK on Linux.
 
-**Pronto quando:** um teste carrega o JSON de qualquer versão fixture e lista as libraries aplicáveis ao SO atual.
+**Closed.** The main window opens empty, CI covers Windows and Ubuntu, and the style guide is at `/#/styleguide` when `VITE_SHOW_STYLEGUIDE=true`.
 
----
-
-## Fase 2. Downloads
-
-**Objetivo:** baixar tudo de forma rápida, verificada e retomável.
-
-- [ ] **2.1** Downloader de um arquivo: stream para disco, **verificação SHA1**, escrita atômica (`.part` → rename), retry com backoff.
-  - 📚 Ownership de buffers, `Path`/`PathBuf`, `AsyncRead`.
-- [ ] **2.2** Fila paralela com limite de concorrência (ex.: 8-16) e agregação de progresso.
-  - 🛑 Limite padrão de concorrência e política de retry.
-  - 📚 `tokio::spawn`, `Semaphore`, canais (`mpsc`).
-- [ ] **2.3** Estrutura de diretórios e **cache compartilhado** (libraries, assets por hash) fora das instâncias.
-  - 🛑 Layout em disco (compatível ou não com o `.minecraft` oficial).
-  - Usar `directories` para caminhos por SO.
-- [ ] **2.4** Instalador de versão: dado um ID de versão, baixa client.jar + libraries + assets e pula o que já está válido.
-
-**Pronto quando:** instalar a mesma versão duas vezes baixa tudo na primeira e nada na segunda.
+**Context beyond the items:** TanStack Router was installed in this phase (`@tanstack/react-router` and the Vite plugin). Routes are files in `src/routes`; screens stay in `src/features`. The tree generated in `src/routeTree.gen.ts` is committed, so `tsc` does not depend on a Vite build. History is hash-based (`/#/` and `/#/styleguide`) because the Tauri window does not rewrite paths to `index.html`. The guide no longer depends on `import.meta.env.DEV`: the route responds not found unless `VITE_SHOW_STYLEGUIDE=true` (template in `.env.example`). TanStack Query, Zustand, and TanStack Virtual remain decided and not installed. Interface text is in English.
 
 ---
 
-## Fase 3. Java
+## Phase 1. Mojang data (parsing)
 
-**Objetivo:** ter o Java certo para cada versão do jogo, sem o usuário instalar nada.
+**Goal:** read and understand the manifests, with no network in tests.
 
-- [ ] **3.1** Descobrir o runtime exigido (`javaVersion` do JSON da versão).
-- [ ] **3.2** Baixar e instalar o runtime da Mojang (manifesto `java-runtime`) ou Adoptium/Temurin.
-  - 🛑 Qual fonte usar como padrão e se o usuário pode apontar um Java próprio.
-- [ ] **3.3** Detectar Javas já instalados (opcional) e validar a versão.
+- [ ] **1.1** `serde` types for `version_manifest_v2` + HTTP client (`reqwest`) to fetch it.
+  - Fixture: save a real manifest in `tests/fixtures`.
+  - 📚 `serde`, `struct`/`enum`, `async/await` with `tokio`.
+- [ ] **1.2** Types for a **version JSON** (libraries, arguments, assetIndex, mainClass, downloads, javaVersion). Test with fixtures of old versions (e.g. 1.8, 1.12) and new ones (1.20+, 1.21).
+  - 🛑 Strategy for versions with the old format (`minecraftArguments`) vs the new one (`arguments`).
+- [ ] **1.3** **`rules`** evaluator (os/arch/features) with tests covering Windows, Linux, and different architectures.
+  - 📚 `match`, `Option`, simple traits.
+- [ ] **1.4** Types and reading of the **asset index**.
 
-**Pronto quando:** pedir "1.21" e "1.8" resulta em dois runtimes distintos, corretos e utilizáveis.
-
----
-
-## Fase 4. Montagem e execução do jogo
-
-**Objetivo:** abrir o Minecraft.
-
-- [ ] **4.1** Extração de **natives** por plataforma para uma pasta temporária por execução.
-  - 📚 `zip`, tratamento de erros de I/O.
-- [ ] **4.2** Montagem do **classpath** (separador `;` no Windows, `:` no Linux) e do comando completo: argumentos JVM + argumentos do jogo, com substituição de variáveis (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
-- [ ] **4.3** Execução do processo (`std::process`/`tokio::process`), captura de stdout/stderr, detecção de fim/crash.
-- [ ] **4.4** CLI de teste (`licht`) em `licht-core` (exemplo/binário) com **auth offline apenas para desenvolvimento**.
-  - 🛑 Se o modo offline fica restrito a builds de dev ou vira recurso (implica decisões legais/de produto).
-
-### 🏁 Marco 1: o jogo abre
-
-Instalar e abrir **vanilla 1.21.x** e **uma versão antiga (1.8.9)** em Windows e Linux, a partir do CLI.
+**Done when:** a test loads the JSON of any fixture version and lists the libraries that apply to the current OS.
 
 ---
 
-## Fase 5. Interface básica
+## Phase 2. Downloads
 
-**Objetivo:** usar tudo isso por uma UI.
+**Goal:** download everything in a way that is fast, verified, and resumable.
 
-- [ ] **5.1** Commands do Tauri (`list_versions`, `install_version`, `launch`), finos, apenas chamando o core. Tipos compartilhados com o frontend via `ts-rs`/`specta`.
-  - 🛑 Contrato (nomes e tipos) dos commands e eventos.
+- [ ] **2.1** Single-file downloader: stream to disk, **SHA1 verification**, atomic write (`.part` → rename), retry with backoff.
+  - 📚 Buffer ownership, `Path`/`PathBuf`, `AsyncRead`.
+- [ ] **2.2** Parallel queue with a concurrency limit (e.g. 8-16) and progress aggregation.
+  - 🛑 Default concurrency limit and retry policy.
+  - 📚 `tokio::spawn`, `Semaphore`, channels (`mpsc`).
+- [ ] **2.3** Directory structure and **shared cache** (libraries, assets by hash) outside instances.
+  - 🛑 On-disk layout (compatible or not with the official `.minecraft`).
+  - Use `directories` for per-OS paths.
+- [ ] **2.4** Version installer: given a version ID, downloads client.jar + libraries + assets and skips what is already valid.
+
+**Done when:** installing the same version twice downloads everything the first time and nothing the second time.
+
+---
+
+## Phase 3. Java
+
+**Goal:** have the right Java for each game version, without the user installing anything.
+
+- [ ] **3.1** Discover the required runtime (`javaVersion` from the version JSON).
+- [ ] **3.2** Download and install the Mojang runtime (`java-runtime` manifest) or Adoptium/Temurin.
+  - 🛑 Which source to use by default and whether the user can point to their own Java.
+- [ ] **3.3** Detect already installed Javas (optional) and validate the version.
+
+**Done when:** asking for "1.21" and "1.8" results in two distinct, correct, usable runtimes.
+
+---
+
+## Phase 4. Game assembly and execution
+
+**Goal:** open Minecraft.
+
+- [ ] **4.1** Extraction of **natives** per platform into a temporary folder per run.
+  - 📚 `zip`, I/O error handling.
+- [ ] **4.2** **Classpath** assembly (`;` separator on Windows, `:` on Linux) and the full command: JVM arguments + game arguments, with variable substitution (`${auth_player_name}`, `${game_directory}`, `${assets_root}`...).
+- [ ] **4.3** Process execution (`std::process`/`tokio::process`), stdout/stderr capture, end/crash detection.
+- [ ] **4.4** Test CLI (`licht`) in `licht-core` (example/binary) with **offline auth for development only**.
+  - 🛑 Whether offline mode stays restricted to dev builds or becomes a feature (implies legal/product decisions).
+
+### 🏁 Milestone 1: the game opens
+
+Install and open **vanilla 1.21.x** and **an old version (1.8.9)** on Windows and Linux, from the CLI.
+
+---
+
+## Phase 5. Basic interface
+
+**Goal:** use all of this through a UI.
+
+- [ ] **5.1** Tauri commands (`list_versions`, `install_version`, `launch`), thin, only calling the core. Types shared with the frontend via `ts-rs`/`specta`.
+  - 🛑 Contract (names and types) of commands and events.
   - 📚 `#[tauri::command]`, `State`, `Arc`/`Mutex`.
-- [ ] **5.2** Eventos de progresso (download, instalação, status do jogo) emitidos do Rust para o frontend, com **throttling** (~100 ms) para não saturar a UI.
-- [ ] **5.3** Tela de versões: listar (lista **virtualizada**), filtrar (release/snapshot), instalar, jogar, barra de progresso. Usar apenas componentes do design system (item 0.7).
-- [ ] **5.4** Console de logs do jogo em tempo real.
-- [ ] **5.5** Tratamento de erros amigável na UI (rede fora, disco cheio, SHA1 inválido).
-- [ ] **5.6** Identidade visual final: logo (lírio de luz), ícone do app em todos os tamanhos e tela "Sobre" com versão e codinome. A paleta e os tokens já existem desde o item 0.7.
-  - 🛑 Direção do logo e do ícone.
+- [ ] **5.2** Progress events (download, installation, game status) emitted from Rust to the frontend, with **throttling** (~100 ms) so the UI is not saturated.
+- [ ] **5.3** Versions screen: list (**virtualized** list), filter (release/snapshot), install, play, progress bar. Use only design-system components (item 0.7).
+- [ ] **5.4** Real-time game log console.
+- [ ] **5.5** Friendly error handling in the UI (network down, disk full, invalid SHA1).
+- [ ] **5.6** Final visual identity: logo (lily of light), app icon in every size, and an About screen with version and codename. The palette and tokens have existed since item 0.7.
+  - 🛑 Logo and icon direction.
 
-**Pronto quando:** dá para instalar e jogar uma versão apenas pela interface.
-
----
-
-## Fase 6. Instâncias
-
-**Objetivo:** perfis isolados.
-
-- [ ] **6.1** Modelo de instância (nome, versão, pasta própria, RAM mín/máx, argumentos JVM extras, resolução), persistido em JSON versionado.
-  - 🛑 Formato do arquivo de configuração e estratégia de migração.
-- [ ] **6.2** CRUD de instâncias (criar, duplicar, renomear, excluir) no core + UI.
-- [ ] **6.3** Configurações globais (pasta de dados, Java, concorrência de download, tema).
-- [ ] **6.4** Abrir pasta da instância no gerenciador de arquivos do SO.
+**Done when:** it is possible to install and play a version from the interface alone.
 
 ---
 
-## Fase 7. Login Microsoft
+## Phase 6. Instances
 
-**Objetivo:** contas legítimas.
+**Goal:** isolated profiles.
 
-- [ ] **7.1** Registrar app no Azure e solicitar aprovação de acesso à API de serviços do Minecraft. **Vale iniciar este pedido cedo**, em paralelo às fases anteriores, pois pode demorar.
-  - 🛑 Tudo desta fase: fluxo (device code recomendado), escopos, onde guardar tokens.
-- [ ] **7.2** Fluxo OAuth device code → Xbox Live → XSTS → Minecraft Services → perfil (nome, UUID, skin).
-- [ ] **7.3** Armazenamento seguro de tokens com o **keyring do SO** (Credential Manager / Secret Service). Nunca em texto puro, nunca em logs.
-- [ ] **7.4** Renovação automática (refresh token), múltiplas contas, logout.
-- [ ] **7.5** Verificar se a conta possui o jogo e mensagens de erro claras.
-
-### 🏁 Marco 2: launcher utilizável com conta real
+- [ ] **6.1** Instance model (name, version, own folder, min/max RAM, extra JVM arguments, resolution), persisted in versioned JSON.
+  - 🛑 Configuration file format and migration strategy.
+- [ ] **6.2** Instance CRUD (create, duplicate, rename, delete) in the core + UI.
+- [ ] **6.3** Global settings (data folder, Java, download concurrency, theme).
+- [ ] **6.4** Open the instance folder in the OS file manager.
 
 ---
 
-## Fase 8. Mod loaders
+## Phase 7. Microsoft login
 
-- [ ] **8.1** **Fabric** (API de metadados): instalar loader numa instância.
-- [ ] **8.2** **Quilt** (mesma abordagem).
-- [ ] **8.3** **NeoForge/Forge** (rodar instalador/processors).
-  - 🛑 Se Forge/NeoForge entram no escopo inicial ou ficam para depois.
-- [ ] **8.4** Seleção de loader e versão do loader na criação de instância.
+**Goal:** legitimate accounts.
 
----
+- [ ] **7.1** Register an app in Azure and request approval to access the Minecraft services API. **Worth starting this request early**, in parallel with the previous phases, because it can take a while.
+  - 🛑 Everything in this phase: flow (device code recommended), scopes, where to store tokens.
+- [ ] **7.2** OAuth device code flow → Xbox Live → XSTS → Minecraft Services → profile (name, UUID, skin).
+- [ ] **7.3** Secure token storage with the **OS keyring** (Credential Manager / Secret Service). Never in plain text, never in logs.
+- [ ] **7.4** Automatic renewal (refresh token), multiple accounts, logout.
+- [ ] **7.5** Check whether the account owns the game, and clear error messages.
 
-## Fase 9. Mods e modpacks
-
-- [ ] **9.1** Cliente da API do **Modrinth**: buscar mods, ver versões, filtrar por loader e versão do jogo.
-- [ ] **9.2** Instalar/atualizar/remover mods numa instância, com verificação de hash e resolução de dependências.
-- [ ] **9.3** Importar modpacks `.mrpack`.
-- [ ] **9.4** (Opcional) CurseForge, que exige chave de API e termos próprios.
-  - 🛑 Cumprimento dos termos de uso das APIs.
+### 🏁 Milestone 2: usable launcher with a real account
 
 ---
 
-## Fase 10. Polimento e distribuição
+## Phase 8. Mod loaders
 
-- [ ] **10.1** Instaladores: Windows (NSIS/MSI) e Linux (AppImage + deb; Flatpak como meta).
-- [ ] **10.2** Auto-update (updater do Tauri) com assinatura.
-  - 🛑 Onde hospedar releases e como gerenciar a chave de assinatura.
-- [ ] **10.3** Release automatizado no CI (tag → build → GitHub Release), com o codinome da versão no título.
-- [ ] **10.4** Telemetria/crash report: **desligado por padrão**, ou inexistente.
-- [ ] **10.5** README, aviso de projeto não oficial, licença, guia de contribuição.
-- [ ] **10.6** Revisão de performance: tempo de abertura, RAM ociosa, throughput de download.
-
-### 🏁 Marco 3: v1.0 pública
+- [ ] **8.1** **Fabric** (metadata API): install the loader on an instance.
+- [ ] **8.2** **Quilt** (same approach).
+- [ ] **8.3** **NeoForge/Forge** (run the installer/processors).
+  - 🛑 Whether Forge/NeoForge are in the initial scope or left for later.
+- [ ] **8.4** Loader and loader-version selection when creating an instance.
 
 ---
 
-## Ideias futuras (fora do escopo inicial)
+## Phase 9. Mods and modpacks
 
-- Backup/restauração de mundos
-- Importar instâncias de outros launchers (Prism, MultiMC)
-- Skins e gerenciamento de capas
-- Suporte a macOS
-- Plugins/temas
-- Servidores favoritos com ping de status
+- [ ] **9.1** **Modrinth** API client: search mods, see versions, filter by loader and game version.
+- [ ] **9.2** Install/update/remove mods on an instance, with hash verification and dependency resolution.
+- [ ] **9.3** Import `.mrpack` modpacks.
+- [ ] **9.4** (Optional) CurseForge, which requires an API key and its own terms.
+  - 🛑 Compliance with the APIs' terms of use.
 
 ---
 
-## Referências
+## Phase 10. Polish and distribution
 
-- Manifesto de versões: `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`
-- minecraft.wiki (formatos de JSON e autenticação)
-- Código de referência: Prism Launcher, HMCL, portablemc, minecraft-launcher-lib
+- [ ] **10.1** Installers: Windows (NSIS/MSI) and Linux (AppImage + deb; Flatpak as a goal).
+- [ ] **10.2** Auto-update (Tauri updater) with signing.
+  - 🛑 Where to host releases and how to manage the signing key.
+- [ ] **10.3** Automated release in CI (tag → build → GitHub Release), with the version codename in the title.
+- [ ] **10.4** Telemetry/crash report: **off by default**, or nonexistent.
+- [ ] **10.5** README, unofficial-project notice, license, contribution guide.
+- [ ] **10.6** Performance review: startup time, idle RAM, download throughput.
+
+### 🏁 Milestone 3: public v1.0
+
+---
+
+## Future ideas (out of the initial scope)
+
+- World backup/restore
+- Import instances from other launchers (Prism, MultiMC)
+- Skins and cape management
+- macOS support
+- Plugins/themes
+- Favorite servers with status ping
+
+---
+
+## References
+
+- Version manifest: `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`
+- minecraft.wiki (JSON formats and authentication)
+- Reference code: Prism Launcher, HMCL, portablemc, minecraft-launcher-lib
 - Tauri v2: https://v2.tauri.app
-- The Rust Book (capítulos 4, 6, 9 e 16 são os mais úteis para este projeto)
+- The Rust Book (chapters 4, 6, 9, and 16 are the most useful for this project)
 
-## Regras permanentes
+## Standing rules
 
-1. Um item = uma branch = um PR pequeno.
-2. Nada de código fora do escopo do item.
-3. Toda lógica do core tem testes; nenhum teste depende de rede.
-4. Dados do jogo só vêm dos servidores da Mojang; nunca redistribuir arquivos do Minecraft.
-5. Sempre perguntar nas decisões marcadas com 🛑.
+1. One item = one branch = one small PR.
+2. No code outside the item's scope.
+3. All core logic has tests; no test depends on the network.
+4. Game data comes only from Mojang's servers; never redistribute Minecraft files.
+5. Always ask on decisions marked with 🛑.

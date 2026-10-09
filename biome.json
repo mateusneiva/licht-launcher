@@ -9,6 +9,7 @@
     "ignoreUnknown": true,
     "includes": [
       "src/**/*.{ts,tsx,css,json}",
+      "!src/routeTree.gen.ts",
       "*.json",
       "*.ts",
       "src-tauri/tauri.conf.json"
@@ -41,6 +42,11 @@
       "suspicious": {
         "noExplicitAny": "error"
       }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   },
   "assist": {

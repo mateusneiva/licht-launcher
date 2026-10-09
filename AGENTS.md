@@ -1,75 +1,76 @@
 # Licht Launcher (Tauri v2)
 
-## Contexto
-- Launcher **não oficial** de Minecraft: Java Edition, multiplataforma (**Windows e Linux**), feito com **Tauri v2**.
-- Frontend: **React + TypeScript + Vite**, **Tailwind CSS**, **shadcn/ui** (Radix UI), **Lucide** (ícones), **TanStack Query** (chamadas `invoke`), **Zustand** (estado global), **TanStack Virtual** (listas grandes). Backend: Rust.
-- Nome exibido: **Licht Launcher**. Repositório/pacotes: `licht-launcher`. Binário/CLI: `licht`. Crate do core: `licht-core`.
-- O dono do projeto é desenvolvedor sênior em TypeScript/Node, mas tem **POUCO conhecimento de Rust**.
-- O plano completo está em `ROADMAP.md`. Trabalhe sempre em **um item por vez**.
+## Context
+- **Unofficial** Minecraft: Java Edition launcher, cross-platform (**Windows and Linux**), built with **Tauri v2**.
+- Frontend: **React + TypeScript + Vite**, **Tailwind CSS**, **shadcn/ui** (Radix UI), **Lucide** (icons), **TanStack Router** (file-based routes in `src/routes`, hash history). **TanStack Query** (`invoke` calls), **Zustand** (global state), and **TanStack Virtual** (large lists) are decided and not installed yet. Backend: Rust.
+- Display name: **Licht Launcher**. Repository/packages: `licht-launcher`. Binary/CLI: `licht`. Core crate: `licht-core`.
+- The project owner is a senior TypeScript/Node developer, but has **LITTLE knowledge of Rust**.
+- The full plan is in `ROADMAP.md`. Always work on **one item at a time**.
 
-## Como trabalhar comigo
-- Antes de qualquer código, apresente um **PLANO curto** (arquivos que serão criados/alterados, abordagem, alternativas) e espere minha aprovação.
-- **Pergunte** quando houver decisão: nova dependência, mudança de arquitetura, API pública entre Rust e frontend, segurança/autenticação, qualquer ambiguidade. Os itens marcados com 🛑 no roadmap sempre exigem minha aprovação. Não decida sozinho.
-- Uma tarefa = uma branch = um PR pequeno e focado. Nunca misture assuntos.
-- **Não escreva código além do que a tarefa pede.** Sem abstrações "para o futuro", sem features extras, sem refatorar o que não foi pedido.
-- Siga a arquitetura abaixo. Se achar que ela deve mudar, **proponha antes**, não mude.
-- Edições de arquivo dentro de um plano já aprovado não precisam de confirmação individual.
-- Se algo na tarefa conflitar com este arquivo ou com o roadmap, pare e me avise.
+## How to work with me
+- Before any code, present a **short PLAN** (files that will be created/changed, approach, alternatives) and wait for my approval.
+- **Ask** when there is a decision: new dependency, architecture change, public API between Rust and the frontend, security/authentication, any ambiguity. Items marked with 🛑 in the roadmap always require my approval. Do not decide on your own.
+- One task = one branch = one small, focused PR. Never mix topics.
+- **Do not write code beyond what the task asks.** No "for the future" abstractions, no extra features, no refactoring that was not requested.
+- Follow the architecture below. If you think it should change, **propose it first**; do not change it.
+- File edits inside an already approved plan do not need individual confirmation.
+- If something in the task conflicts with this file or the roadmap, stop and tell me.
 
-## Idioma
-- Converse comigo em **português**.
-- Código, nomes de identificadores, comentários e mensagens de commit em **inglês** (Conventional Commits: `feat:`, `fix:`, `test:`, `chore:`...).
-- Descrições de PR em **português**.
-- *(Ajuste esta seção se preferir outro padrão.)*
+## Language
+- Code, identifier names, comments, and commit messages in **English** (Conventional Commits: `feat:`, `fix:`, `test:`, `chore:`...).
+- Interface text in **English**.
+- PR descriptions in **English**.
+- *(Adjust this section if you prefer another pattern.)*
 
-## Arquitetura
+## Architecture
 - Cargo workspace:
-  - `crates/licht-core`: toda a lógica (manifestos, downloads, regras, Java, launch, auth). **Sem dependência do Tauri.** Testável sozinho.
-  - `src-tauri`: camada fina. Apenas `#[tauri::command]` e eventos que chamam o `licht-core`. **Sem regra de negócio aqui.**
-  - `src/`: frontend. Sem lógica de Minecraft; só UI e chamadas `invoke`. Estrutura: `src/components/ui` (shadcn/ui), `src/features/*` (telas e lógica de UI por funcionalidade), `src/lib` (utilitários e wrappers de `invoke`).
-- Comunicação Rust → frontend: **eventos** (ex.: progresso de download). Frontend → Rust: **commands tipados**.
-- Tipos compartilhados entre Rust e TS devem ser **gerados** (`ts-rs` ou `specta`, a definir), nunca duplicados à mão.
-- Erros: `thiserror` no core, `anyhow` apenas nas bordas. **Nada de `unwrap()`** fora de testes.
-- Logs com `tracing`.
-- Use **Tauri v2**. Não use APIs ou exemplos da v1.
+  - `crates/licht-core`: all the logic (manifests, downloads, rules, Java, launch, auth). **No Tauri dependency.** Testable on its own.
+  - `src-tauri`: thin layer. Only `#[tauri::command]` and events that call `licht-core`. **No business rules here.**
+  - `src/`: frontend. No Minecraft logic; only UI and `invoke` calls. Structure: `src/routes` (route files), `src/components/ui` (shadcn/ui), `src/features/*` (screens and UI logic by feature), `src/lib` (utilities and `invoke` wrappers).
+- Rust → frontend communication: **events** (e.g. download progress). Frontend → Rust: **typed commands**.
+- Types shared between Rust and TS must be **generated** (`ts-rs` or `specta`, to be decided), never duplicated by hand.
+- Errors: `thiserror` in the core, `anyhow` only at the edges. **No `unwrap()`** outside tests.
+- Logs with `tracing`.
+- Use **Tauri v2**. Do not use v1 APIs or examples.
 
-## UI e design system (consistência acima de criatividade)
-- Use **somente** os componentes de `src/components/ui` e os **tokens do tema** (variáveis CSS). Se faltar um componente, proponha adicioná-lo ao design system em vez de criar um estilo avulso.
-- **Proibido:** estilos inline, cores/tamanhos "soltos" (ex.: `#3b82f6`, `w-[137px]`) fora dos tokens, e qualquer biblioteca de UI nova sem minha aprovação.
-- Antes de criar uma tela, **liste os componentes existentes** que serão usados e quais faltam.
-- Acessibilidade: tudo operável por teclado, com foco visível e rótulos corretos (o Radix já ajuda; não remova).
-- O frontend roda em **WebView2 (Windows)** e **WebKitGTK (Linux)**. Evite `backdrop-filter`, blurs, sombras grandes e animações complexas. Se usar um recurso moderno de CSS, avise para eu testar nos dois sistemas.
-- Chamadas ao Rust via TanStack Query (cache, loading e erro). Eventos de progresso com throttling (~100 ms). Listas longas sempre virtualizadas.
-- Tipos compartilhados com o Rust são gerados; nunca redeclare à mão.
+## UI and design system (consistency over creativity)
+- Use **only** the components in `src/components/ui` and the **theme tokens** (CSS variables). If a component is missing, propose adding it to the design system instead of creating a one-off style.
+- **Forbidden:** inline styles, loose colors/sizes (e.g. `#3b82f6`, `w-[137px]`) outside the tokens, and any new UI library without my approval.
+- Before creating a screen, **list the existing components** that will be used and which ones are missing.
+- Accessibility: everything operable by keyboard, with visible focus and correct labels (Radix already helps; do not remove that).
+- The frontend runs in **WebView2 (Windows)** and **WebKitGTK (Linux)**. Avoid `backdrop-filter`, blurs, large shadows, and complex animations. If you use a modern CSS feature, tell me so I can test it on both systems.
+- Calls to Rust via TanStack Query (cache, loading, and error), once Query is installed. Progress events with throttling (~100 ms). Long lists always virtualized.
+- The style guide lives at `/#/styleguide` and loads only with `VITE_SHOW_STYLEGUIDE=true` (see `.env.example`).
+- Types shared with Rust are generated; never redeclare them by hand.
 
-## Rust (nível iniciante: priorize código simples)
-- Prefira clareza a "idiomático avançado". Evite lifetimes complexos, macros próprias e `unsafe`. Se for inevitável, explique e peça aprovação.
-- Use `clone()` sem culpa quando simplificar.
-- Em todo PR, inclua na descrição a seção **"Conceitos de Rust usados"**, explicando em linguagem simples (com comparação com TS/Node quando fizer sentido) qualquer conceito novo: ownership, borrowing, `Result`, traits, async/tokio.
-- Quando houver erro do compilador, **explique a causa** antes de corrigir.
-- Comente apenas o "porquê" não óbvio.
+## Rust (beginner level: prefer simple code)
+- Prefer clarity over "advanced idiomatic". Avoid complex lifetimes, custom macros, and `unsafe`. If it is unavoidable, explain it and ask for approval.
+- Use `clone()` without guilt when it simplifies things.
+- In every PR, include a **"Rust concepts used"** section in the description, explaining in plain language (with a TS/Node comparison when it makes sense) any new concept: ownership, borrowing, `Result`, traits, async/tokio.
+- When there is a compiler error, **explain the cause** before fixing it.
+- Comment only the non-obvious "why".
 
-## Qualidade (obrigatório antes de abrir PR)
+## Quality (required before opening a PR)
 - Rust: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`
-- Frontend: `pnpm lint`, `pnpm typecheck`, `pnpm test` (Vitest + Testing Library; componentes novos com ao menos um teste de renderização/interação)
-- Testes automatizados para toda lógica do core. Use **fixtures** (JSONs reais da Mojang salvos em `tests/fixtures`). **Nenhum teste pode depender de rede.**
-- Se algum check falhar e você não conseguir resolver, diga no PR em vez de esconder.
+- Frontend: `pnpm lint`, `pnpm typecheck`, `pnpm test` (Vitest + Testing Library; new components with at least one render/interaction test)
+- Automated tests for all core logic. Use **fixtures** (real Mojang JSONs saved in `tests/fixtures`). **No test may depend on the network.**
+- If a check fails and you cannot fix it, say so in the PR instead of hiding it.
 
-## Formato do PR
-- Título curto. Descrição com: o que mudou, por quê, como testar, decisões tomadas, conceitos de Rust usados, pontos onde quero minha opinião.
+## PR format
+- Short title. Description with: what changed, why, how to test, decisions made, Rust concepts used, points where I want my opinion.
 
-## Regras de domínio
-- Dados do jogo vêm **sempre dos servidores da Mojang**. Nunca redistribuir arquivos do Minecraft.
-- Verificar **SHA1** de tudo que for baixado.
-- Nada de tokens/segredos no repositório ou nos logs. Tokens ficam no **keyring do SO**.
-- Caminhos e separadores devem funcionar em Windows e Linux (use `std::path` e a crate `directories`, nunca concatene strings).
-- O projeto **não é oficial**: mantenha o aviso "não afiliado à Mojang Studios nem à Microsoft" no README e na tela "Sobre". Não use "Minecraft" ou "Mojang" no nome do projeto, do pacote ou do binário, e não use logos ou arte oficiais.
+## Domain rules
+- Game data **always** comes from Mojang's servers. Never redistribute Minecraft files.
+- Verify the **SHA1** of everything that is downloaded.
+- No tokens/secrets in the repository or in the logs. Tokens stay in the **OS keyring**.
+- Paths and separators must work on Windows and Linux (use `std::path` and the `directories` crate; never concatenate strings).
+- The project is **not official**: keep the notice "not affiliated with Mojang Studios or Microsoft" in the README and on the About screen. Do not use "Minecraft" or "Mojang" in the project, package, or binary name, and do not use official logos or art.
 
-## Convenções de release
-- Cada release `0.x` recebe um **codinome de flor em alemão**, conforme a tabela do `ROADMAP.md` (0.1 Lilie, 0.2 Iris, 0.3 Rose...). O codinome vai na tela "Sobre", no título da release e no nome do instalador.
+## Release conventions
+- Each `0.x` release gets a **German flower codename**, according to the table in `ROADMAP.md` (0.1 Lilie, 0.2 Iris, 0.3 Rose...). The codename goes on the About screen, in the release title, and in the installer name.
 
-## Referências úteis
-- Manifesto: `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`
-- minecraft.wiki (formatos de JSON e autenticação)
-- Código de referência: Prism Launcher, HMCL, portablemc, minecraft-launcher-lib
+## Useful references
+- Manifest: `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`
+- minecraft.wiki (JSON formats and authentication)
+- Reference code: Prism Launcher, HMCL, portablemc, minecraft-launcher-lib
 - Tauri v2: https://v2.tauri.app
