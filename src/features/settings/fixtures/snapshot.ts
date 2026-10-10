@@ -1,0 +1,23 @@
+export const snapshot = {
+  settings: {
+    schema: 1,
+    theme: "dark",
+    fullscreen: false,
+    width: 1280,
+    height: 720,
+    maxMemoryMb: 2048,
+    jvmArguments: [],
+    java25: null,
+    java21: null,
+    java17: null,
+    java8: null,
+    downloadConcurrency: 8,
+    dataDirectory: null,
+  },
+  applicationDirectory: "C:\\Users\\Mateus\\AppData\\Roaming\\Licht",
+  memoryTotalMb: 16384,
+  memoryRecommendedMb: 4096,
+  memoryMinimumMb: 512,
+  memoryMaximumMb: 16384,
+  memoryStepMb: 256,
+};

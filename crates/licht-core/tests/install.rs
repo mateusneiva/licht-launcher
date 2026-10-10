@@ -363,6 +363,7 @@ async fn install(
     let result = install_version(
         &reqwest::Client::new(),
         cache,
+        cache,
         InstallPlan {
             version_id: "1.21.11",
             version,

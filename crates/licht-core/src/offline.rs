@@ -3,9 +3,11 @@ use std::path::{Path, PathBuf};
 
 use md5::Digest;
 
+use crate::settings::GlobalLaunch;
 use crate::{
-    CoreError, LaunchEnvironment, Result, SharedCache, Version, create_natives_directory,
-    extract_natives, launch_command, parse_asset_index, reconstruct_assets,
+    CoreError, LaunchEnvironment, Result, SharedCache, Version, apply_global_launch,
+    create_natives_directory, extract_natives, launch_command, parse_asset_index,
+    reconstruct_assets,
 };
 
 #[derive(Debug)]
@@ -110,6 +112,8 @@ fn uses_launchwrapper(version: &Version) -> bool {
 
 /// Extracts natives, then builds the command for an offline account.
 /// Does not start the process and does not print the command.
+/// `global` is applied to every launch, ahead of the main class.
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_offline_launch(
     java: &Path,
     cache: &SharedCache,
@@ -118,6 +122,7 @@ pub fn prepare_offline_launch(
     environment: &LaunchEnvironment,
     account: &OfflineAccount,
     game_directory: &Path,
+    global: &GlobalLaunch,
 ) -> Result<OfflineLaunch> {
     let natives_directory = create_natives_directory(cache, version_id)?;
     extract_natives(cache, version, environment, &natives_directory)?;
@@ -174,6 +179,7 @@ pub fn prepare_offline_launch(
     } else {
         None
     };
+    apply_global_launch(&mut command, &version.main_class, global);
     Ok(OfflineLaunch {
         command,
         appdata,

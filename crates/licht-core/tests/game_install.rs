@@ -50,6 +50,7 @@ async fn a_local_version_is_written_and_installed() {
     let installed = install_game(
         &reqwest::Client::new(),
         &cache,
+        &cache,
         GameInstall {
             version_id: "demo",
             version_json_url: &format!("{base}/version"),
@@ -76,6 +77,7 @@ async fn a_local_version_is_written_and_installed() {
 
     let error = install_game(
         &reqwest::Client::new(),
+        &cache,
         &cache,
         GameInstall {
             version_id: "demo",

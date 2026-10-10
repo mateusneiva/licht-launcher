@@ -2,17 +2,24 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  browseApplicationDirectory,
+  browseJava,
   createInstance,
   deleteInstance,
+  detectJavaInstallations,
   duplicateInstance,
   getSettings,
+  installRecommendedJava,
   installVersion,
+  javaInstallationStatus,
   launchVersion,
   listInstances,
   listVersions,
   openInstanceFolder,
+  openRepository,
   renameInstance,
-  setDownloadConcurrency,
+  runtimeJava,
+  saveSettings,
 } from "@/lib/commands";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -59,15 +66,57 @@ describe("launcher commands", () => {
     });
   });
 
+  it("opens the repository", async () => {
+    await openRepository();
+    expect(invoke).toHaveBeenCalledWith("open_repository");
+  });
+
   it("reads settings without arguments", async () => {
     await getSettings();
     expect(invoke).toHaveBeenCalledWith("get_settings");
   });
 
-  it("saves download concurrency", async () => {
-    await setDownloadConcurrency(4);
-    expect(invoke).toHaveBeenCalledWith("set_download_concurrency", {
+  it("saves settings and asks for Java and folders", async () => {
+    const settings = {
+      schema: 1,
+      theme: "dark",
+      fullscreen: false,
+      width: null,
+      height: null,
+      maxMemoryMb: 2048,
+      jvmArguments: [],
+      java25: null,
+      java21: null,
+      java17: null,
+      java8: null,
       downloadConcurrency: 4,
+      dataDirectory: null,
+    };
+    await saveSettings(settings);
+    expect(invoke).toHaveBeenCalledWith("save_settings", { settings });
+    await detectJavaInstallations();
+    expect(invoke).toHaveBeenCalledWith("detect_java_installations");
+    await runtimeJava();
+    expect(invoke).toHaveBeenCalledWith("runtime_java");
+    const paths = {
+      java25: null,
+      java21: "C:\\runtime\\java.exe",
+      java17: null,
+      java8: null,
+    };
+    await javaInstallationStatus(paths);
+    expect(invoke).toHaveBeenCalledWith("java_installation_status", { paths });
+    await installRecommendedJava(21);
+    expect(invoke).toHaveBeenCalledWith("install_recommended_java", {
+      major: 21,
+    });
+    await browseJava("C:\\runtime\\java.exe");
+    expect(invoke).toHaveBeenCalledWith("browse_java", {
+      path: "C:\\runtime\\java.exe",
+    });
+    await browseApplicationDirectory("D:\\Games");
+    expect(invoke).toHaveBeenCalledWith("browse_application_directory", {
+      path: "D:\\Games",
     });
   });
 
@@ -84,9 +133,9 @@ describe("launcher commands", () => {
   });
 
   it("launches with the offline username", async () => {
-    await launchVersion("1.5.2", "Mateus");
+    await launchVersion("classic", "Mateus");
     expect(invoke).toHaveBeenCalledWith("launch", {
-      versionId: "1.5.2",
+      folder: "classic",
       username: "Mateus",
     });
   });

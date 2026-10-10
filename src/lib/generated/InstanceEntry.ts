@@ -5,4 +5,4 @@
  *
  * `folder` is chosen once and does not change when the profile is renamed.
  */
-export type InstanceEntry = { folder: string, name: string, versionId: string, minMemoryMb: number, maxMemoryMb: number, jvmArguments: Array<string>, width: number | null, height: number | null, };
+export type InstanceEntry = { folder: string, name: string, versionId: string, minMemoryMb: number, maxMemoryMb: number, jvmArguments: Array<string>, fullscreen: boolean, width: number | null, height: number | null, };

@@ -29,25 +29,30 @@ pub use install::{
     parse_install_args,
 };
 pub use instance::{
-    Instance, InstanceEntry, create_instance, delete_instance, duplicate_instance, list_instances,
-    load_instance, parse_instance, rename_instance,
+    Instance, InstanceEntry, create_instance, delete_instance, duplicate_instance, instance_launch,
+    list_instances, load_instance, parse_instance, rename_instance,
 };
 pub use java::{
-    ADOPTIUM_API, JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaRuntimeBuild, JavaRuntimeEntry,
-    JavaRuntimeIndex, JavaRuntimeManifest, JavaRuntimeManifestRef, default_java_roots,
-    discover_javas, fetch_java_runtime_index, install_java, install_temurin, installed_java,
-    matching_java, parse_java_runtime_index, parse_java_runtime_manifest, parse_java_version,
-    probe_java_major, required_java_major, required_runtime, runtime_platform, select_runtime,
-    validate_java,
+    ADOPTIUM_API, JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaDetections, JavaPaths, JavaRuntimeBuild,
+    JavaRuntimeEntry, JavaRuntimeIndex, JavaRuntimeManifest, JavaRuntimeManifestRef, JavaStatus,
+    browse_start_directory, default_java_roots, detect_javas, detect_known_javas, discover_javas,
+    fetch_java_runtime_index, install_java, install_temurin, installed_java, java_detect_roots,
+    java_installation_status, matching_java, parse_java_runtime_index, parse_java_runtime_manifest,
+    parse_java_version, probe_java_major, required_java_major, required_runtime,
+    runtime_java_paths, runtime_platform, select_runtime, validate_java,
 };
-pub use launch::{classpath, launch_command};
+pub use launch::{apply_global_launch, classpath, launch_command};
 pub use natives::{NativeLibrary, create_natives_directory, extract_natives, native_libraries};
 pub use offline::{
     LaunchArgs, OfflineAccount, OfflineLaunch, offline_account, parse_launch_args,
     prepare_offline_launch,
 };
 pub use run::{GameExit, GameLine, LogCodec, OutputStream, log_codec, run_game};
-pub use settings::{Settings, load_settings, save_settings};
+pub use settings::{
+    GlobalLaunch, Settings, SettingsSnapshot, configured_java, download_concurrency, game_cache,
+    global_launch, load_settings, memory_slider_max, recommended_max_memory_mb, save_settings,
+    set_java_path, settings_snapshot, total_memory_mb,
+};
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,

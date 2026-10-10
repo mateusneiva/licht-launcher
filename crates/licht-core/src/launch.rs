@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use crate::settings::{GlobalLaunch, MIN_XMS_MB};
 use crate::{
     Argument, ArgumentValue, GameArguments, LaunchEnvironment, Library, OsName, Result,
     SharedCache, Version, applicable_libraries, rules_allow,
@@ -94,6 +95,33 @@ pub fn launch_command(
     }
 
     Ok(command)
+}
+
+/// Inserts the global memory and JVM arguments immediately before the main class.
+/// Fullscreen appends `--fullscreen` and leaves width and height out. Otherwise
+/// `--width` and `--height` are appended only when they are set.
+pub fn apply_global_launch(command: &mut Vec<String>, main_class: &str, global: &GlobalLaunch) {
+    if let Some(index) = command.iter().position(|part| part == main_class) {
+        let mut jvm = Vec::new();
+        jvm.push(format!("-Xms{MIN_XMS_MB}M"));
+        jvm.push(format!("-Xmx{}M", global.max_memory_mb));
+        jvm.extend(global.jvm_arguments.iter().cloned());
+        for (offset, argument) in jvm.into_iter().enumerate() {
+            command.insert(index + offset, argument);
+        }
+    }
+    if global.fullscreen {
+        command.push("--fullscreen".to_string());
+        return;
+    }
+    if let Some(width) = global.width {
+        command.push("--width".to_string());
+        command.push(width.to_string());
+    }
+    if let Some(height) = global.height {
+        command.push("--height".to_string());
+        command.push(height.to_string());
+    }
 }
 
 fn is_extracted_native(library: &Library) -> bool {

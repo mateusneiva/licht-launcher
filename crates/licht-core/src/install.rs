@@ -10,7 +10,7 @@ use crate::natives::{classifier_matches, native_classifier};
 use crate::{
     ADOPTIUM_API, AssetIndexFile, CoreError, DEFAULT_RETRY, DownloadTask, JavaChoice,
     LaunchEnvironment, Result, SharedCache, Version, applicable_libraries, download_all,
-    install_java, install_temurin, load_settings, parse_asset_index, parse_version,
+    download_concurrency, install_java, install_temurin, parse_asset_index, parse_version,
     required_java_major,
 };
 
@@ -28,6 +28,7 @@ pub struct InstallPlan<'a> {
 pub async fn install_version(
     client: &reqwest::Client,
     cache: &SharedCache,
+    settings: &SharedCache,
     plan: InstallPlan<'_>,
     progress: mpsc::Sender<DownloadProgress>,
 ) -> Result<()> {
@@ -48,7 +49,7 @@ pub async fn install_version(
     download_all(
         client,
         &pending,
-        load_settings(cache)?.download_concurrency as usize,
+        download_concurrency(cache, settings)?,
         DEFAULT_RETRY,
         progress,
     )
@@ -110,6 +111,7 @@ pub fn parse_install_args(args: &[String]) -> Result<InstallArgs> {
 pub async fn install_game(
     client: &reqwest::Client,
     cache: &SharedCache,
+    settings: &SharedCache,
     request: GameInstall<'_>,
     progress: mpsc::Sender<DownloadProgress>,
 ) -> Result<PathBuf> {
@@ -133,6 +135,7 @@ pub async fn install_game(
     install_version(
         client,
         cache,
+        settings,
         InstallPlan {
             version_id: request.version_id,
             version: &version,
@@ -146,7 +149,7 @@ pub async fn install_game(
     .await?;
 
     if let Some(java) = request.java {
-        return install_java(client, cache, JavaChoice::Custom(java), progress).await;
+        return install_java(client, cache, settings, JavaChoice::Custom(java), progress).await;
     }
 
     let major = required_java_major(request.version_id, &version);
