@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { FolderOpenIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -28,13 +29,23 @@ export function DownloadsSection({
   });
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-3 text-sm">
-          <span id="download-concurrency-label">Download concurrency</span>
-          <span className="text-muted-foreground">
-            {draft.downloadConcurrency}
-          </span>
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3
+              id="download-concurrency-label"
+              className="text-sm font-medium"
+            >
+              Concurrency
+            </h3>
+            <span className="text-sm text-muted-foreground">
+              {draft.downloadConcurrency}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            How many files download at once.
+          </p>
         </div>
         <Slider
           aria-labelledby="download-concurrency-label"
@@ -49,12 +60,20 @@ export function DownloadsSection({
             }
           }}
         />
-      </div>
-      <div className="flex flex-col gap-1 text-sm">
-        <label htmlFor="application-directory">Application directory</label>
+      </section>
+
+      <section className="flex flex-col gap-4 border-t border-border pt-6">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium">Application directory</h3>
+          <p className="text-sm text-muted-foreground">
+            Where game data and launcher files are stored. This change applies
+            after restart.
+          </p>
+        </div>
         <div className="flex gap-2">
           <Input
             id="application-directory"
+            aria-label="Application directory"
             className="min-w-0 flex-1"
             value={draft.dataDirectory}
             onChange={(event) =>
@@ -68,13 +87,11 @@ export function DownloadsSection({
             disabled={browseDirectory.isPending}
             onClick={() => browseDirectory.mutate(draft.dataDirectory)}
           >
+            <FolderOpenIcon data-icon="inline-start" aria-hidden />
             Browse
           </Button>
         </div>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        This change applies after restart.
-      </p>
+      </section>
     </div>
   );
 }

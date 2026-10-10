@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { DownloadIcon, FolderOpenIcon, SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -69,7 +70,7 @@ export function JavaMajorRow({
   return (
     <div className="flex flex-col gap-2">
       <label className="flex flex-col gap-1 text-sm" htmlFor={row.field}>
-        {row.label}
+        <span className="font-medium">{row.label}</span>
         <span className="flex items-center gap-2">
           <Input
             id={row.field}
@@ -89,6 +90,7 @@ export function JavaMajorRow({
           disabled={busy || checking || valid}
           onClick={onInstall}
         >
+          <DownloadIcon data-icon="inline-start" aria-hidden />
           Recommended install
         </Button>
         <Button
@@ -103,6 +105,7 @@ export function JavaMajorRow({
             setOpen(true);
           }}
         >
+          <SearchIcon data-icon="inline-start" aria-hidden />
           Detect installations
         </Button>
         <Button
@@ -112,6 +115,7 @@ export function JavaMajorRow({
           disabled={busy}
           onClick={onBrowse}
         >
+          <FolderOpenIcon data-icon="inline-start" aria-hidden />
           Browse
         </Button>
       </div>

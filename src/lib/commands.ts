@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { GameExit } from "@/lib/generated/GameExit";
 import type { InstanceEntry } from "@/lib/generated/InstanceEntry";
+import type { InstanceSettings } from "@/lib/generated/InstanceSettings";
 import type { JavaDetections } from "@/lib/generated/JavaDetections";
 import type { JavaPaths } from "@/lib/generated/JavaPaths";
 import type { JavaStatus } from "@/lib/generated/JavaStatus";
@@ -36,6 +37,20 @@ export function duplicateInstance(
 
 export function deleteInstance(folder: string): Promise<void> {
   return invoke("delete_instance", { folder });
+}
+
+export function saveInstance(
+  folder: string,
+  settings: InstanceSettings,
+): Promise<InstanceEntry> {
+  return invoke("save_instance", { folder, settings });
+}
+
+export function setInstanceVersion(
+  folder: string,
+  versionId: string,
+): Promise<InstanceEntry> {
+  return invoke("set_instance_version", { folder, versionId });
 }
 
 export function openInstanceFolder(folder: string): Promise<void> {

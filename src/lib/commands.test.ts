@@ -19,7 +19,9 @@ import {
   openRepository,
   renameInstance,
   runtimeJava,
+  saveInstance,
   saveSettings,
+  setInstanceVersion,
 } from "@/lib/commands";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -56,6 +58,28 @@ describe("launcher commands", () => {
     await deleteInstance("Survival");
     expect(invoke).toHaveBeenCalledWith("delete_instance", {
       folder: "Survival",
+    });
+    const settings = {
+      overrideWindow: true,
+      overrideMemory: false,
+      overrideJava: false,
+      overrideJvmArguments: false,
+      javaPath: null,
+      maxMemoryMb: 4096,
+      jvmArguments: [],
+      fullscreen: true,
+      width: 1280,
+      height: 720,
+    };
+    await saveInstance("Survival", settings);
+    expect(invoke).toHaveBeenCalledWith("save_instance", {
+      folder: "Survival",
+      settings,
+    });
+    await setInstanceVersion("Survival", "1.21.1");
+    expect(invoke).toHaveBeenCalledWith("set_instance_version", {
+      folder: "Survival",
+      versionId: "1.21.1",
     });
   });
 

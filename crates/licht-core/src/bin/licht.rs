@@ -5,9 +5,10 @@ use std::time::{Duration, Instant};
 use licht_core::{
     ASSET_OBJECT_BASE, Arch, CoreError, GameInstall, LaunchEnvironment, OsName, OutputStream,
     SharedCache, configured_java, fetch_version_manifest, game_cache, global_launch, install_game,
-    installed_java, load_settings, log_codec, offline_account, parse_install_args,
+    installed_java, load_instance, load_settings, log_codec, offline_account, parse_install_args,
     parse_launch_args, parse_version, parse_versions_args, prepare_offline_launch,
-    probe_java_major, required_java_major, run_game, version_lines,
+    probe_java_major, required_java_major, resolved_java_path, resolved_launch, run_game,
+    version_lines,
 };
 use tokio::sync::mpsc;
 
@@ -157,12 +158,24 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
     let version = parse_version(&json)?;
     let environment = host_environment()?;
     let required = required_java_major(&args.version_id, &version);
-    let custom_java = args.java.is_some();
+    let instance = match args.game_directory {
+        Some(path) => path,
+        None => {
+            let path = cache.instance_dir(&args.version_id)?;
+            std::fs::create_dir_all(&path)?;
+            path
+        }
+    };
+    let profile = load_instance(&instance)?;
+    let custom_java = args.java.is_some() || resolved_java_path(&profile).is_some();
     let java = match args.java {
         Some(path) => path,
-        None => match configured_java(&settings, required) {
+        None => match resolved_java_path(&profile) {
             Some(path) => path,
-            None => installed_java(&cache, &args.version_id, &version, &environment)?,
+            None => match configured_java(&settings, required) {
+                Some(path) => path,
+                None => installed_java(&cache, &args.version_id, &version, &environment)?,
+            },
         },
     };
     let major = if custom_java {
@@ -172,15 +185,7 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
     };
     let codec = log_codec(major);
     let account = offline_account(&args.username)?;
-    let instance = match args.game_directory {
-        Some(path) => path,
-        None => {
-            let path = cache.instance_dir(&args.version_id)?;
-            std::fs::create_dir_all(&path)?;
-            path
-        }
-    };
-    let global = global_launch(&settings);
+    let launch_options = resolved_launch(&profile, &global_launch(&settings));
     let launch = prepare_offline_launch(
         &java,
         &cache,
@@ -189,7 +194,7 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
         &environment,
         &account,
         &instance,
-        &global,
+        &launch_options,
     )?;
 
     let (output, mut incoming) = mpsc::channel(32);

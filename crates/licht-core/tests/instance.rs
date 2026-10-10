@@ -2,8 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use licht_core::{
-    CoreError, GlobalLaunch, create_instance, delete_instance, duplicate_instance, instance_launch,
-    list_instances, load_instance, parse_instance, rename_instance,
+    CoreError, GlobalLaunch, InstanceSettings, create_instance, delete_instance,
+    duplicate_instance, instance_launch, list_instances, load_instance, parse_instance,
+    rename_instance, resolved_java_path, resolved_launch, update_instance,
+    update_instance_version,
 };
 
 fn scratch(name: &str) -> PathBuf {
@@ -44,6 +46,11 @@ fn a_folder_without_a_file_gains_schema_one() {
     assert!(!instance.fullscreen);
     assert_eq!(instance.width, None);
     assert_eq!(instance.height, None);
+    assert!(!instance.override_window);
+    assert!(!instance.override_memory);
+    assert!(!instance.override_java);
+    assert!(!instance.override_jvm_arguments);
+    assert_eq!(instance.java_path, None);
 
     let json = fs::read_to_string(dir.join("instance.json")).expect("written file");
     let again = load_instance(&dir).expect("second read");
@@ -272,5 +279,144 @@ fn a_new_instance_copies_the_template_and_leaves_an_older_one_alone() {
         fs::read_to_string(older.join("instance.json")).expect("untouched"),
         before
     );
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn older_files_default_overrides_to_off() {
+    let root = scratch("overrides-default");
+    let dir = root.join("Survival");
+    write(
+        &dir,
+        "instance.json",
+        r#"{
+  "schema": 1,
+  "name": "Survival",
+  "versionId": "1.20.1",
+  "minMemoryMb": 512,
+  "maxMemoryMb": 4096,
+  "jvmArguments": ["-XX:+UseG1GC"],
+  "fullscreen": true,
+  "width": 1280,
+  "height": 720
+}"#,
+    );
+    let instance = load_instance(&dir).expect("read");
+    assert!(!instance.override_window);
+    assert!(!instance.override_memory);
+    assert!(!instance.override_java);
+    assert!(!instance.override_jvm_arguments);
+    assert_eq!(instance.java_path, None);
+    assert!(instance.fullscreen);
+    assert_eq!(instance.max_memory_mb, 4096);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn resolved_launch_uses_global_until_overrides_turn_on() {
+    let instance = load_instance(&{
+        let root = scratch("resolve");
+        let dir = root.join("Game");
+        write(
+            &dir,
+            "instance.json",
+            r#"{
+  "schema": 1,
+  "name": "Game",
+  "versionId": "1.20.1",
+  "minMemoryMb": 512,
+  "maxMemoryMb": 8192,
+  "jvmArguments": ["-Xss1M"],
+  "fullscreen": true,
+  "width": 1920,
+  "height": 1080,
+  "overrideWindow": false,
+  "overrideMemory": false,
+  "overrideJava": false,
+  "overrideJvmArguments": false,
+  "javaPath": "C:/custom/java.exe"
+}"#,
+        );
+        dir
+    })
+    .expect("instance");
+    let global = GlobalLaunch {
+        max_memory_mb: 2048,
+        jvm_arguments: vec!["-XX:+UseG1GC".to_string()],
+        fullscreen: false,
+        width: Some(854),
+        height: Some(480),
+    };
+    assert_eq!(resolved_launch(&instance, &global), global);
+    assert_eq!(resolved_java_path(&instance), None);
+
+    let mut customized = instance.clone();
+    customized.override_window = true;
+    customized.override_memory = true;
+    customized.override_jvm_arguments = true;
+    customized.override_java = true;
+    let merged = resolved_launch(&customized, &global);
+    assert_eq!(merged.max_memory_mb, 8192);
+    assert_eq!(merged.jvm_arguments, vec!["-Xss1M".to_string()]);
+    assert!(merged.fullscreen);
+    assert_eq!(merged.width, Some(1920));
+    assert_eq!(merged.height, Some(1080));
+    assert_eq!(
+        resolved_java_path(&customized),
+        Some(std::path::PathBuf::from("C:/custom/java.exe"))
+    );
+}
+
+#[test]
+fn update_instance_persists_overrides_and_keeps_name() {
+    let root = scratch("update");
+    let instances = root.join("instances");
+    let created =
+        create_instance(&instances, "My World", "1.20.1", &plain_template()).expect("create");
+    let updated = update_instance(
+        &instances,
+        &created.folder,
+        &InstanceSettings {
+            override_window: true,
+            override_memory: true,
+            override_java: true,
+            override_jvm_arguments: true,
+            java_path: Some("  C:/jdk/bin/java.exe  ".to_string()),
+            max_memory_mb: 6144,
+            jvm_arguments: vec!["-XX:+UseZGC".to_string()],
+            fullscreen: true,
+            width: Some(1600),
+            height: Some(900),
+        },
+    )
+    .expect("update");
+    assert_eq!(updated.folder, "My-World");
+    assert_eq!(updated.name, "My World");
+    assert_eq!(updated.version_id, "1.20.1");
+    assert!(updated.override_window);
+    assert!(updated.override_memory);
+    assert!(updated.override_java);
+    assert!(updated.override_jvm_arguments);
+    assert_eq!(updated.java_path.as_deref(), Some("C:/jdk/bin/java.exe"));
+    assert_eq!(updated.max_memory_mb, 6144);
+    assert_eq!(updated.jvm_arguments, vec!["-XX:+UseZGC".to_string()]);
+    assert!(updated.fullscreen);
+    assert_eq!(updated.width, Some(1600));
+    assert_eq!(updated.height, Some(900));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn update_instance_version_changes_only_the_game_version() {
+    let root = scratch("version");
+    let instances = root.join("instances");
+    let created =
+        create_instance(&instances, "My World", "1.20.1", &plain_template()).expect("create");
+    let updated =
+        update_instance_version(&instances, &created.folder, "1.21.1").expect("version");
+    assert_eq!(updated.folder, "My-World");
+    assert_eq!(updated.name, "My World");
+    assert_eq!(updated.version_id, "1.21.1");
+    assert_eq!(updated.max_memory_mb, created.max_memory_mb);
     let _ = fs::remove_dir_all(root);
 }

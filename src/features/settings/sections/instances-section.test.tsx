@@ -27,16 +27,20 @@ describe("InstancesSection", () => {
     expect(width).toBeEnabled();
     expect(height).toBeEnabled();
 
-    fireEvent.click(screen.getByRole("switch", { name: "Full screen" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Fullscreen" }));
 
     expect(width).toBeDisabled();
     expect(height).toBeDisabled();
     expect(width).toHaveAttribute("placeholder", "854");
     expect(height).toHaveAttribute("placeholder", "480");
-    expect(screen.getByText("Applied to every instance.")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "The game starts in full screen. Width and height are not used.",
+        "Applied to every instance unless that instance customizes the setting.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The game starts in fullscreen. Width and height are not used.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Window width in pixels.")).toBeInTheDocument();
@@ -44,12 +48,6 @@ describe("InstancesSection", () => {
     expect(
       screen.getByText("Maximum memory. The minimum stays 512 MB."),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Java arguments")).toHaveAttribute(
-      "placeholder",
-      "-XX:+UseG1GC",
-    );
-    expect(
-      screen.getByText("Extra JVM flags, separated by spaces."),
-    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Java arguments")).not.toBeInTheDocument();
   });
 });

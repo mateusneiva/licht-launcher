@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { Input } from "@/components/ui/input";
 import { useJavaReady } from "@/features/settings/hooks/use-java-ready";
 import { useToastError } from "@/features/settings/hooks/use-toast-error";
 import type { Draft } from "@/features/settings/model/draft";
@@ -77,25 +78,44 @@ export function JavaSection({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {JAVA_MAJORS.map((row) => (
-        <JavaMajorRow
-          key={row.field}
-          row={row}
-          value={draft[row.field]}
-          found={detections.data?.[row.field] ?? []}
-          runtimePath={runtime.data?.[row.field] ?? null}
-          checkReady={javaReady}
-          detectionsPending={detections.isPending}
-          busy={install.isPending}
-          onChange={(path) => onChange({ [row.field]: path })}
-          onInstall={() => install.mutate(row.major)}
-          onRefreshDetections={() => {
-            void detections.refetch();
-          }}
-          onBrowse={() => browseFor(row.field)}
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-4">
+        {JAVA_MAJORS.map((row) => (
+          <JavaMajorRow
+            key={row.field}
+            row={row}
+            value={draft[row.field]}
+            found={detections.data?.[row.field] ?? []}
+            runtimePath={runtime.data?.[row.field] ?? null}
+            checkReady={javaReady}
+            detectionsPending={detections.isPending}
+            busy={install.isPending}
+            onChange={(path) => onChange({ [row.field]: path })}
+            onInstall={() => install.mutate(row.major)}
+            onRefreshDetections={() => {
+              void detections.refetch();
+            }}
+            onBrowse={() => browseFor(row.field)}
+          />
+        ))}
+      </section>
+
+      <section className="flex flex-col gap-4 border-t border-border pt-6">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium">Java arguments</h3>
+          <p id="jvm-arguments-hint" className="text-sm text-muted-foreground">
+            Extra JVM flags, separated by spaces.
+          </p>
+        </div>
+        <Input
+          id="jvm-arguments"
+          placeholder="-XX:+UseG1GC"
+          aria-label="Java arguments"
+          aria-describedby="jvm-arguments-hint"
+          value={draft.jvmArguments}
+          onChange={(event) => onChange({ jvmArguments: event.target.value })}
         />
-      ))}
+      </section>
     </div>
   );
 }

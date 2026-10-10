@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { listen } from "@tauri-apps/api/event";
-import { SettingsIcon } from "lucide-react";
+import { Settings2Icon, SettingsIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InstanceSettingsDialog } from "@/features/instance-settings/instance-settings-dialog";
+import type { SectionId } from "@/features/settings/model/sections";
 import { SettingsDialog } from "@/features/settings/settings-dialog";
 import {
   createInstance,
@@ -35,6 +37,7 @@ import {
   listVersions,
   openInstanceFolder,
   renameInstance,
+  setInstanceVersion,
 } from "@/lib/commands";
 import { friendlyError, messageOf } from "@/lib/errors";
 import type { DownloadProgress } from "@/lib/generated/DownloadProgress";
@@ -58,7 +61,6 @@ type ViewId = (typeof VIEWS)[number]["id"];
 
 type InstanceAction =
   | { kind: "create" }
-  | { kind: "rename"; folder: string; name: string }
   | { kind: "duplicate"; folder: string; name: string }
   | { kind: "delete"; folder: string; name: string };
 
@@ -128,6 +130,11 @@ export function VersionsPage() {
   const [username, setUsername] = useState("Steve");
   const [view, setView] = useState<ViewId>("versions");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] =
+    useState<SectionId>("appearance");
+  const [configuringFolder, setConfiguringFolder] = useState<string | null>(
+    null,
+  );
   const [typeId, setTypeId] = useState<TypeId>("release");
   const [action, setAction] = useState<InstanceAction | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -195,7 +202,10 @@ export function VersionsPage() {
 
   const remove = useMutation({
     mutationFn: deleteInstance,
-    onSuccess: refreshInstances,
+    onSuccess: async () => {
+      setConfiguringFolder(null);
+      await refreshInstances();
+    },
     onError: (error: unknown) => {
       toast.error(friendlyError(messageOf(error)));
     },
@@ -204,6 +214,28 @@ export function VersionsPage() {
   const openFolder = useMutation({
     mutationFn: openInstanceFolder,
     onError: (error: unknown) => {
+      toast.error(friendlyError(messageOf(error)));
+    },
+  });
+
+  const changeVersion = useMutation({
+    mutationFn: async (input: {
+      folder: string;
+      versionId: string;
+      installed: boolean;
+    }) => {
+      if (!input.installed) {
+        await installVersion(input.versionId);
+      }
+      return setInstanceVersion(input.folder, input.versionId);
+    },
+    onSuccess: async () => {
+      setProgress(null);
+      await queryClient.invalidateQueries({ queryKey: ["instances"] });
+      await queryClient.invalidateQueries({ queryKey: ["versions"] });
+    },
+    onError: (error: unknown) => {
+      setProgress(null);
       toast.error(friendlyError(messageOf(error)));
     },
   });
@@ -275,16 +307,26 @@ export function VersionsPage() {
     rename.isPending ||
     duplicate.isPending ||
     remove.isPending ||
-    openFolder.isPending;
+    openFolder.isPending ||
+    changeVersion.isPending;
   const nameMissing = username.trim() === "";
   const installedVersions = (versions.data ?? []).filter(
     (version) => version.installed,
   );
+  const configuring =
+    instances.data?.find((instance) => instance.folder === configuringFolder) ??
+    null;
 
   function openCreate() {
     setDraftName("");
     setDraftVersion(installedVersions[0]?.id ?? "");
     setAction({ kind: "create" });
+  }
+
+  function openGlobalSettings(section: SectionId = "appearance") {
+    setConfiguringFolder(null);
+    setSettingsSection(section);
+    setSettingsOpen(true);
   }
 
   return (
@@ -299,7 +341,7 @@ export function VersionsPage() {
                 variant="ghost"
                 size="icon"
                 aria-label="Settings"
-                onClick={() => setSettingsOpen(true)}
+                onClick={() => openGlobalSettings("appearance")}
               >
                 <SettingsIcon />
               </Button>
@@ -375,58 +417,16 @@ export function VersionsPage() {
                         Play {instance.name}
                       </Button>
                       <Button
-                        size="sm"
+                        type="button"
+                        size="icon"
                         variant="secondary"
                         disabled={busy}
+                        aria-label={`Configure ${instance.name}`}
                         onClick={() => {
-                          openFolder.mutate(instance.folder);
+                          setConfiguringFolder(instance.folder);
                         }}
                       >
-                        Abrir Pasta
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => {
-                          setDraftName(instance.name);
-                          setAction({
-                            kind: "rename",
-                            folder: instance.folder,
-                            name: instance.name,
-                          });
-                        }}
-                      >
-                        Rename
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => {
-                          setDraftName("");
-                          setAction({
-                            kind: "duplicate",
-                            folder: instance.folder,
-                            name: instance.name,
-                          });
-                        }}
-                      >
-                        Duplicate
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => {
-                          setAction({
-                            kind: "delete",
-                            folder: instance.folder,
-                            name: instance.name,
-                          });
-                        }}
-                      >
-                        Delete
+                        <Settings2Icon />
                       </Button>
                     </span>
                   </li>
@@ -505,17 +505,12 @@ export function VersionsPage() {
                 </DialogFooter>
               </>
             ) : null}
-            {action?.kind === "rename" || action?.kind === "duplicate" ? (
+            {action?.kind === "duplicate" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle>
-                    {action.kind === "rename" ? "Rename" : "Duplicate"}{" "}
-                    {action.name}
-                  </DialogTitle>
+                  <DialogTitle>Duplicate {action.name}</DialogTitle>
                   <DialogDescription>
-                    {action.kind === "rename"
-                      ? "The folder stays the same."
-                      : "Saves are copied into the new instance."}
+                    Saves are copied into the new instance.
                   </DialogDescription>
                 </DialogHeader>
                 <label
@@ -535,22 +530,13 @@ export function VersionsPage() {
                   <Button
                     disabled={busy || draftName.trim() === ""}
                     onClick={() => {
-                      if (action.kind === "rename") {
-                        rename.mutate({
-                          folder: action.folder,
-                          name: draftName,
-                        });
-                      } else {
-                        duplicate.mutate({
-                          folder: action.folder,
-                          name: draftName,
-                        });
-                      }
+                      duplicate.mutate({
+                        folder: action.folder,
+                        name: draftName,
+                      });
                     }}
                   >
-                    {action.kind === "rename"
-                      ? "Save name"
-                      : "Duplicate instance"}
+                    Duplicate instance
                   </Button>
                 </DialogFooter>
               </>
@@ -710,7 +696,69 @@ export function VersionsPage() {
           </div>
         ) : null}
       </main>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <InstanceSettingsDialog
+        entry={configuring}
+        open={configuringFolder !== null}
+        busy={busy}
+        versionBusy={changeVersion.isPending}
+        onOpenChange={(next) => {
+          if (!next) {
+            setConfiguringFolder(null);
+          }
+        }}
+        onOpenGlobalSettings={() => openGlobalSettings("instances")}
+        onRename={(name) => {
+          if (!configuring) {
+            return;
+          }
+          rename.mutate({ folder: configuring.folder, name });
+        }}
+        onChangeVersion={(versionId) => {
+          if (!configuring || versionId === configuring.versionId) {
+            return;
+          }
+          const installed =
+            versions.data?.find((version) => version.id === versionId)
+              ?.installed ?? false;
+          changeVersion.mutate({
+            folder: configuring.folder,
+            versionId,
+            installed,
+          });
+        }}
+        onOpenFolder={() => {
+          if (!configuring) {
+            return;
+          }
+          openFolder.mutate(configuring.folder);
+        }}
+        onDuplicate={() => {
+          if (!configuring) {
+            return;
+          }
+          setDraftName("");
+          setAction({
+            kind: "duplicate",
+            folder: configuring.folder,
+            name: configuring.name,
+          });
+        }}
+        onDelete={() => {
+          if (!configuring) {
+            return;
+          }
+          setAction({
+            kind: "delete",
+            folder: configuring.folder,
+            name: configuring.name,
+          });
+        }}
+      />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        initialSection={settingsSection}
+      />
     </>
   );
 }
