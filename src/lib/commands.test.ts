@@ -10,6 +10,7 @@ import {
   launchVersion,
   listInstances,
   listVersions,
+  openInstanceFolder,
   renameInstance,
   setDownloadConcurrency,
 } from "@/lib/commands";
@@ -47,6 +48,13 @@ describe("launcher commands", () => {
     });
     await deleteInstance("Survival");
     expect(invoke).toHaveBeenCalledWith("delete_instance", {
+      folder: "Survival",
+    });
+  });
+
+  it("opens one instance folder by its id", async () => {
+    await openInstanceFolder("Survival");
+    expect(invoke).toHaveBeenCalledWith("open_instance_folder", {
       folder: "Survival",
     });
   });

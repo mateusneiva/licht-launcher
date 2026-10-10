@@ -7,6 +7,7 @@ use licht_core::{
     prepare_offline_launch, required_java_major, run_game, save_settings, version_summaries,
 };
 use tauri::{AppHandle, Emitter, State};
+use tauri_plugin_opener::OpenerExt;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
 
 use crate::progress::ProgressThrottle;
@@ -86,6 +87,18 @@ pub fn duplicate_instance(folder: String, name: String) -> Result<InstanceEntry,
 pub fn delete_instance(folder: String) -> Result<(), String> {
     let root = instances_root().map_err(failure)?;
     licht_core::delete_instance(&root, &folder).map_err(failure)
+}
+
+#[tauri::command]
+pub fn open_instance_folder(app: AppHandle, folder: String) -> Result<(), String> {
+    let cache = SharedCache::system().map_err(failure)?;
+    let path = cache.instance_dir(&folder).map_err(failure)?;
+    if !path.is_dir() {
+        return Err("instance directory is missing".to_string());
+    }
+    app.opener()
+        .open_path(path.to_string_lossy().into_owned(), None::<&str>)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

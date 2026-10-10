@@ -12,6 +12,7 @@ pub fn run() -> anyhow::Result<()> {
     );
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .manage(commands::OperationLock::new())
         .invoke_handler(tauri::generate_handler![
             commands::list_instances,
@@ -19,6 +20,7 @@ pub fn run() -> anyhow::Result<()> {
             commands::rename_instance,
             commands::duplicate_instance,
             commands::delete_instance,
+            commands::open_instance_folder,
             commands::get_settings,
             commands::set_download_concurrency,
             commands::list_versions,

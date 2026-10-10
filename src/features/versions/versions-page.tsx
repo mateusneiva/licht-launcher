@@ -33,6 +33,7 @@ import {
   launchVersion,
   listInstances,
   listVersions,
+  openInstanceFolder,
   renameInstance,
 } from "@/lib/commands";
 import { friendlyError, messageOf } from "@/lib/errors";
@@ -199,6 +200,13 @@ export function VersionsPage() {
     },
   });
 
+  const openFolder = useMutation({
+    mutationFn: openInstanceFolder,
+    onError: (error: unknown) => {
+      toast.error(friendlyError(messageOf(error)));
+    },
+  });
+
   const play = useMutation({
     mutationFn: (versionId: string) =>
       launchVersion(versionId, username.trim()),
@@ -266,7 +274,8 @@ export function VersionsPage() {
     create.isPending ||
     rename.isPending ||
     duplicate.isPending ||
-    remove.isPending;
+    remove.isPending ||
+    openFolder.isPending;
   const nameMissing = username.trim() === "";
   const installedVersions = (versions.data ?? []).filter(
     (version) => version.installed,
@@ -366,6 +375,16 @@ export function VersionsPage() {
                       variant="secondary"
                       disabled={busy}
                       onClick={() => {
+                        openFolder.mutate(instance.folder);
+                      }}
+                    >
+                      Abrir Pasta
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
                         setDraftName(instance.name);
                         setAction({
                           kind: "rename",
@@ -374,7 +393,7 @@ export function VersionsPage() {
                         });
                       }}
                     >
-                      Rename {instance.name}
+                      Rename
                     </Button>
                     <Button
                       size="sm"
@@ -389,7 +408,7 @@ export function VersionsPage() {
                         });
                       }}
                     >
-                      Duplicate {instance.name}
+                      Duplicate
                     </Button>
                     <Button
                       size="sm"
@@ -403,7 +422,7 @@ export function VersionsPage() {
                         });
                       }}
                     >
-                      Delete {instance.name}
+                      Delete
                     </Button>
                   </span>
                 </li>

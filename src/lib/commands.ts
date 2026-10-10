@@ -34,6 +34,10 @@ export function deleteInstance(folder: string): Promise<void> {
   return invoke("delete_instance", { folder });
 }
 
+export function openInstanceFolder(folder: string): Promise<void> {
+  return invoke("open_instance_folder", { folder });
+}
+
 export function getSettings(): Promise<Settings> {
   return invoke("get_settings");
 }
