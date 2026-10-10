@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { listen } from "@tauri-apps/api/event";
+import { SettingsIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SettingsDialog } from "@/features/settings/settings-dialog";
 import {
   createInstance,
   deleteInstance,
@@ -127,6 +127,7 @@ export function VersionsPage() {
   const queryClient = useQueryClient();
   const [username, setUsername] = useState("Steve");
   const [view, setView] = useState<ViewId>("versions");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [typeId, setTypeId] = useState<TypeId>("release");
   const [action, setAction] = useState<InstanceAction | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -208,8 +209,7 @@ export function VersionsPage() {
   });
 
   const play = useMutation({
-    mutationFn: (versionId: string) =>
-      launchVersion(versionId, username.trim()),
+    mutationFn: (folder: string) => launchVersion(folder, username.trim()),
     onMutate: () => {
       setLines([]);
     },
@@ -288,412 +288,429 @@ export function VersionsPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-xl font-semibold">Licht Launcher</h1>
-          <div className="flex items-baseline gap-3">
-            <Link
-              to="/settings"
-              className="text-sm text-primary underline-offset-4 hover:underline"
-            >
-              Settings
-            </Link>
-            <p className="text-xs text-muted-foreground">0.1.0 · Lilie</p>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Unofficial, not affiliated with Mojang Studios or Microsoft.
-        </p>
-      </div>
-      <label className="flex flex-col gap-1 text-sm" htmlFor="username">
-        Username
-        <Input
-          id="username"
-          value={username}
-          autoComplete="nickname"
-          onChange={(event) => {
-            setUsername(event.target.value);
-          }}
-        />
-      </label>
-      <Tabs
-        value={view}
-        onValueChange={(value) => {
-          setView(value as ViewId);
-        }}
-      >
-        <TabsList>
-          {VIEWS.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>
-              {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-      {view === "versions" ? (
-        <section aria-label="Instances" className="flex flex-col gap-2">
+    <>
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-medium">Instances</h2>
-            <Button size="sm" disabled={busy} onClick={openCreate}>
-              Create
-            </Button>
+            <h1 className="text-xl font-semibold">Licht Launcher</h1>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <SettingsIcon />
+              </Button>
+              <p className="text-xs text-muted-foreground">0.1.0 · Lilie</p>
+            </div>
           </div>
-          {instances.isPending ? (
-            <p className="text-sm text-muted-foreground">
-              Loading instances...
-            </p>
-          ) : null}
-          {instances.isSuccess && instances.data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No instances yet.</p>
-          ) : null}
-          {instances.isSuccess && instances.data.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {instances.data.map((instance) => (
-                <li
-                  key={instance.folder}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span className="min-w-0 truncate text-sm">
-                    {instance.name}{" "}
-                    <span className="text-muted-foreground">
-                      {instance.versionId}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 gap-2">
-                    <Button
-                      size="sm"
-                      disabled={busy || nameMissing}
-                      onClick={() => {
-                        play.mutate(instance.versionId);
-                      }}
-                    >
-                      Play {instance.name}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => {
-                        openFolder.mutate(instance.folder);
-                      }}
-                    >
-                      Abrir Pasta
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => {
-                        setDraftName(instance.name);
-                        setAction({
-                          kind: "rename",
-                          folder: instance.folder,
-                          name: instance.name,
-                        });
-                      }}
-                    >
-                      Rename
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => {
-                        setDraftName("");
-                        setAction({
-                          kind: "duplicate",
-                          folder: instance.folder,
-                          name: instance.name,
-                        });
-                      }}
-                    >
-                      Duplicate
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => {
-                        setAction({
-                          kind: "delete",
-                          folder: instance.folder,
-                          name: instance.name,
-                        });
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </section>
-      ) : null}
-      <Dialog
-        open={action !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setAction(null);
-          }
-        }}
-      >
-        <DialogContent>
-          {action?.kind === "create" ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Create instance</DialogTitle>
-                <DialogDescription>
-                  Choose a name and an installed version.
-                </DialogDescription>
-              </DialogHeader>
-              <label
-                className="flex flex-col gap-1 text-sm"
-                htmlFor="instance-name"
-              >
-                Name
-                <Input
-                  id="instance-name"
-                  value={draftName}
-                  onChange={(event) => {
-                    setDraftName(event.target.value);
-                  }}
-                />
-              </label>
-              {installedVersions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Install a version first.
-                </p>
-              ) : (
-                <Select
-                  value={draftVersion}
-                  onValueChange={(value) => {
-                    setDraftVersion(value);
-                  }}
-                >
-                  <SelectTrigger aria-label="Version">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {installedVersions.map((version) => (
-                      <SelectItem key={version.id} value={version.id}>
-                        {version.id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <DialogFooter>
-                <Button
-                  disabled={
-                    busy || draftName.trim() === "" || draftVersion === ""
-                  }
-                  onClick={() => {
-                    create.mutate({ name: draftName, versionId: draftVersion });
-                  }}
-                >
-                  Create instance
-                </Button>
-              </DialogFooter>
-            </>
-          ) : null}
-          {action?.kind === "rename" || action?.kind === "duplicate" ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  {action.kind === "rename" ? "Rename" : "Duplicate"}{" "}
-                  {action.name}
-                </DialogTitle>
-                <DialogDescription>
-                  {action.kind === "rename"
-                    ? "The folder stays the same."
-                    : "Saves are copied into the new instance."}
-                </DialogDescription>
-              </DialogHeader>
-              <label
-                className="flex flex-col gap-1 text-sm"
-                htmlFor="instance-name"
-              >
-                Name
-                <Input
-                  id="instance-name"
-                  value={draftName}
-                  onChange={(event) => {
-                    setDraftName(event.target.value);
-                  }}
-                />
-              </label>
-              <DialogFooter>
-                <Button
-                  disabled={busy || draftName.trim() === ""}
-                  onClick={() => {
-                    if (action.kind === "rename") {
-                      rename.mutate({ folder: action.folder, name: draftName });
-                    } else {
-                      duplicate.mutate({
-                        folder: action.folder,
-                        name: draftName,
-                      });
-                    }
-                  }}
-                >
-                  {action.kind === "rename"
-                    ? "Save name"
-                    : "Duplicate instance"}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : null}
-          {action?.kind === "delete" ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Delete {action.name}?</DialogTitle>
-                <DialogDescription>
-                  Saves in this instance will be removed.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="destructive"
-                  disabled={busy}
-                  onClick={() => {
-                    remove.mutate(action.folder);
-                  }}
-                >
-                  Delete instance
-                </Button>
-              </DialogFooter>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-      {view === "console" ? (
-        <section aria-label="Game log" className="flex flex-col gap-1">
-          <h2 className="text-sm font-medium">Game log</h2>
-          <ScrollArea className="h-96 rounded-lg border">
-            {lines.length === 0 ? (
-              <p className="p-3 text-sm text-muted-foreground">
-                The game log will appear here.
-              </p>
-            ) : (
-              <pre className="p-3 text-sm">
-                {lines.map((line) => (
-                  <div
-                    key={line.id}
-                    className={
-                      line.stream === "stderr" ? "text-destructive" : undefined
-                    }
-                  >
-                    {line.line}
-                  </div>
-                ))}
-              </pre>
-            )}
-          </ScrollArea>
-        </section>
-      ) : null}
-      {view === "versions" ? (
-        <Select
-          value={typeId}
+          <p className="text-xs text-muted-foreground">
+            Unofficial, not affiliated with Mojang Studios or Microsoft.
+          </p>
+        </div>
+        <label className="flex flex-col gap-1 text-sm" htmlFor="username">
+          Username
+          <Input
+            id="username"
+            value={username}
+            autoComplete="nickname"
+            onChange={(event) => {
+              setUsername(event.target.value);
+            }}
+          />
+        </label>
+        <Tabs
+          value={view}
           onValueChange={(value) => {
-            setTypeId(value as TypeId);
+            setView(value as ViewId);
           }}
         >
-          <SelectTrigger aria-label="Type">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TYPES.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
+          <TabsList>
+            {VIEWS.map((item) => (
+              <TabsTrigger key={item.id} value={item.id}>
                 {item.label}
-              </SelectItem>
+              </TabsTrigger>
             ))}
-          </SelectContent>
-        </Select>
-      ) : null}
-      {view === "versions" && versions.isPending ? (
-        <p className="text-sm text-muted-foreground">Loading versions...</p>
-      ) : null}
-      {view === "versions" && versions.isError ? (
-        <p className="text-sm text-destructive">
-          Versions could not be loaded.
-        </p>
-      ) : null}
-      {view === "versions" ? (
-        <div ref={listParent} className="h-96 overflow-auto rounded-lg border">
-          {rows.length === 0 && versions.isSuccess ? (
-            <p className="p-3 text-sm text-muted-foreground">
-              No versions in this group.
-            </p>
-          ) : (
-            <ul
-              aria-label="Versions"
-              className="relative w-full"
-              style={{ height: virtualizer.getTotalSize() }}
-            >
-              {virtualizer.getVirtualItems().map((item) => {
-                const row = rows[item.index];
-                if (!row) {
-                  return null;
-                }
-                const position = {
-                  height: ROW_HEIGHT,
-                  transform: `translateY(${item.start}px)`,
-                };
-                if (row.kind === "heading") {
-                  return (
-                    <li
-                      key={row.id}
-                      className="absolute inset-x-0 flex items-center px-3"
-                      style={position}
-                    >
-                      <h2 className="text-xs font-medium text-muted-foreground">
-                        {row.label}
-                      </h2>
-                    </li>
-                  );
-                }
-                const version = row.version;
-                return (
+          </TabsList>
+        </Tabs>
+        {view === "versions" ? (
+          <section aria-label="Instances" className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-medium">Instances</h2>
+              <Button size="sm" disabled={busy} onClick={openCreate}>
+                Create
+              </Button>
+            </div>
+            {instances.isPending ? (
+              <p className="text-sm text-muted-foreground">
+                Loading instances...
+              </p>
+            ) : null}
+            {instances.isSuccess && instances.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No instances yet.</p>
+            ) : null}
+            {instances.isSuccess && instances.data.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {instances.data.map((instance) => (
                   <li
-                    key={version.id}
-                    className="absolute inset-x-0 flex items-center justify-between gap-3 px-3"
-                    style={position}
+                    key={instance.folder}
+                    className="flex items-center justify-between gap-3"
                   >
-                    <span className="truncate text-sm">{version.id}</span>
-                    {install.isPending && install.variables === version.id ? (
-                      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-                        <span className="truncate text-xs text-muted-foreground">
-                          {progress
-                            ? progressText(progress)
-                            : "0.0%  0.0MB/0.0MB"}
-                        </span>
-                        <Progress
-                          aria-label="Install progress"
-                          value={progress ? barValue(progress) : 0}
-                        />
-                      </div>
-                    ) : null}
-                    {version.installed ? null : (
+                    <span className="min-w-0 truncate text-sm">
+                      {instance.name}{" "}
+                      <span className="text-muted-foreground">
+                        {instance.versionId}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        disabled={busy || nameMissing}
+                        onClick={() => {
+                          play.mutate(instance.folder);
+                        }}
+                      >
+                        Play {instance.name}
+                      </Button>
                       <Button
                         size="sm"
                         variant="secondary"
                         disabled={busy}
                         onClick={() => {
-                          install.mutate(version.id);
+                          openFolder.mutate(instance.folder);
                         }}
                       >
-                        Install {version.id}
+                        Abrir Pasta
                       </Button>
-                    )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setDraftName(instance.name);
+                          setAction({
+                            kind: "rename",
+                            folder: instance.folder,
+                            name: instance.name,
+                          });
+                        }}
+                      >
+                        Rename
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setDraftName("");
+                          setAction({
+                            kind: "duplicate",
+                            folder: instance.folder,
+                            name: instance.name,
+                          });
+                        }}
+                      >
+                        Duplicate
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setAction({
+                            kind: "delete",
+                            folder: instance.folder,
+                            name: instance.name,
+                          });
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </span>
                   </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      ) : null}
-    </main>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        ) : null}
+        <Dialog
+          open={action !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAction(null);
+            }
+          }}
+        >
+          <DialogContent>
+            {action?.kind === "create" ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Create instance</DialogTitle>
+                  <DialogDescription>
+                    Choose a name and an installed version.
+                  </DialogDescription>
+                </DialogHeader>
+                <label
+                  className="flex flex-col gap-1 text-sm"
+                  htmlFor="instance-name"
+                >
+                  Name
+                  <Input
+                    id="instance-name"
+                    value={draftName}
+                    onChange={(event) => {
+                      setDraftName(event.target.value);
+                    }}
+                  />
+                </label>
+                {installedVersions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Install a version first.
+                  </p>
+                ) : (
+                  <Select
+                    value={draftVersion}
+                    onValueChange={(value) => {
+                      setDraftVersion(value);
+                    }}
+                  >
+                    <SelectTrigger aria-label="Version">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {installedVersions.map((version) => (
+                        <SelectItem key={version.id} value={version.id}>
+                          {version.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <DialogFooter>
+                  <Button
+                    disabled={
+                      busy || draftName.trim() === "" || draftVersion === ""
+                    }
+                    onClick={() => {
+                      create.mutate({
+                        name: draftName,
+                        versionId: draftVersion,
+                      });
+                    }}
+                  >
+                    Create instance
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : null}
+            {action?.kind === "rename" || action?.kind === "duplicate" ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {action.kind === "rename" ? "Rename" : "Duplicate"}{" "}
+                    {action.name}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {action.kind === "rename"
+                      ? "The folder stays the same."
+                      : "Saves are copied into the new instance."}
+                  </DialogDescription>
+                </DialogHeader>
+                <label
+                  className="flex flex-col gap-1 text-sm"
+                  htmlFor="instance-name"
+                >
+                  Name
+                  <Input
+                    id="instance-name"
+                    value={draftName}
+                    onChange={(event) => {
+                      setDraftName(event.target.value);
+                    }}
+                  />
+                </label>
+                <DialogFooter>
+                  <Button
+                    disabled={busy || draftName.trim() === ""}
+                    onClick={() => {
+                      if (action.kind === "rename") {
+                        rename.mutate({
+                          folder: action.folder,
+                          name: draftName,
+                        });
+                      } else {
+                        duplicate.mutate({
+                          folder: action.folder,
+                          name: draftName,
+                        });
+                      }
+                    }}
+                  >
+                    {action.kind === "rename"
+                      ? "Save name"
+                      : "Duplicate instance"}
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : null}
+            {action?.kind === "delete" ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Delete {action.name}?</DialogTitle>
+                  <DialogDescription>
+                    Saves in this instance will be removed.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="destructive"
+                    disabled={busy}
+                    onClick={() => {
+                      remove.mutate(action.folder);
+                    }}
+                  >
+                    Delete instance
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+        {view === "console" ? (
+          <section aria-label="Game log" className="flex flex-col gap-1">
+            <h2 className="text-sm font-medium">Game log</h2>
+            <ScrollArea className="h-96 rounded-lg border">
+              {lines.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground">
+                  The game log will appear here.
+                </p>
+              ) : (
+                <pre className="p-3 text-sm">
+                  {lines.map((line) => (
+                    <div
+                      key={line.id}
+                      className={
+                        line.stream === "stderr"
+                          ? "text-destructive"
+                          : undefined
+                      }
+                    >
+                      {line.line}
+                    </div>
+                  ))}
+                </pre>
+              )}
+            </ScrollArea>
+          </section>
+        ) : null}
+        {view === "versions" ? (
+          <Select
+            value={typeId}
+            onValueChange={(value) => {
+              setTypeId(value as TypeId);
+            }}
+          >
+            <SelectTrigger aria-label="Type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPES.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+        {view === "versions" && versions.isPending ? (
+          <p className="text-sm text-muted-foreground">Loading versions...</p>
+        ) : null}
+        {view === "versions" && versions.isError ? (
+          <p className="text-sm text-destructive">
+            Versions could not be loaded.
+          </p>
+        ) : null}
+        {view === "versions" ? (
+          <div
+            ref={listParent}
+            className="h-96 overflow-auto rounded-lg border"
+          >
+            {rows.length === 0 && versions.isSuccess ? (
+              <p className="p-3 text-sm text-muted-foreground">
+                No versions in this group.
+              </p>
+            ) : (
+              <ul
+                aria-label="Versions"
+                className="relative w-full"
+                style={{ height: virtualizer.getTotalSize() }}
+              >
+                {virtualizer.getVirtualItems().map((item) => {
+                  const row = rows[item.index];
+                  if (!row) {
+                    return null;
+                  }
+                  const position = {
+                    height: ROW_HEIGHT,
+                    transform: `translateY(${item.start}px)`,
+                  };
+                  if (row.kind === "heading") {
+                    return (
+                      <li
+                        key={row.id}
+                        className="absolute inset-x-0 flex items-center px-3"
+                        style={position}
+                      >
+                        <h2 className="text-xs font-medium text-muted-foreground">
+                          {row.label}
+                        </h2>
+                      </li>
+                    );
+                  }
+                  const version = row.version;
+                  return (
+                    <li
+                      key={version.id}
+                      className="absolute inset-x-0 flex items-center justify-between gap-3 px-3"
+                      style={position}
+                    >
+                      <span className="truncate text-sm">{version.id}</span>
+                      {install.isPending && install.variables === version.id ? (
+                        <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+                          <span className="truncate text-xs text-muted-foreground">
+                            {progress
+                              ? progressText(progress)
+                              : "0.0%  0.0MB/0.0MB"}
+                          </span>
+                          <Progress
+                            aria-label="Install progress"
+                            value={progress ? barValue(progress) : 0}
+                          />
+                        </div>
+                      ) : null}
+                      {version.installed ? null : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={busy}
+                          onClick={() => {
+                            install.mutate(version.id);
+                          }}
+                        >
+                          Install {version.id}
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ) : null}
+      </main>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
   );
 }

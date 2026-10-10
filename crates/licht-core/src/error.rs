@@ -32,6 +32,16 @@ pub enum CoreError {
     SettingsSchema { schema: u32 },
     #[error("download concurrency must be from 1 to 16")]
     SettingsConcurrency,
+    #[error("color theme must be dark")]
+    SettingsTheme,
+    #[error("memory must be from 512 to 16384 in steps of 256")]
+    SettingsMemory,
+    #[error("window size must be at least 1")]
+    SettingsWindow,
+    #[error("application directory must be an absolute path")]
+    SettingsDirectory,
+    #[error("java path is invalid")]
+    SettingsJava,
     #[error("cache path is invalid")]
     CachePath,
     #[error("instance JSON is invalid")]

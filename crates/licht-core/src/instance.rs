@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::settings::GlobalLaunch;
 use crate::{CoreError, Result};
 
 const SCHEMA: u32 = 1;
@@ -24,6 +25,8 @@ pub struct Instance {
     pub min_memory_mb: u32,
     pub max_memory_mb: u32,
     pub jvm_arguments: Vec<String>,
+    #[serde(default)]
+    pub fullscreen: bool,
     pub width: Option<u32>,
     pub height: Option<u32>,
 }
@@ -40,6 +43,7 @@ pub struct InstanceEntry {
     pub min_memory_mb: u32,
     pub max_memory_mb: u32,
     pub jvm_arguments: Vec<String>,
+    pub fullscreen: bool,
     pub width: Option<u32>,
     pub height: Option<u32>,
 }
@@ -107,6 +111,7 @@ pub fn create_instance(
     instances_dir: &Path,
     name: &str,
     version_id: &str,
+    template: &GlobalLaunch,
 ) -> Result<InstanceEntry> {
     let name = display_name(name)?;
     single_component(version_id)?;
@@ -117,7 +122,7 @@ pub fn create_instance(
         return Err(CoreError::InstanceExists);
     }
     fs::create_dir(&dir)?;
-    let instance = default_instance(name, version_id.to_string());
+    let instance = instance_from_template(name, version_id.to_string(), template);
     write_instance(&dir, &instance)?;
     Ok(entry_from(folder, instance))
 }
@@ -167,8 +172,34 @@ fn default_instance(name: String, version_id: String) -> Instance {
         min_memory_mb: DEFAULT_MIN_MEMORY_MB,
         max_memory_mb: DEFAULT_MAX_MEMORY_MB,
         jvm_arguments: Vec::new(),
+        fullscreen: false,
         width: None,
         height: None,
+    }
+}
+
+fn instance_from_template(name: String, version_id: String, template: &GlobalLaunch) -> Instance {
+    Instance {
+        schema: SCHEMA,
+        name,
+        version_id,
+        min_memory_mb: DEFAULT_MIN_MEMORY_MB,
+        max_memory_mb: template.max_memory_mb,
+        jvm_arguments: template.jvm_arguments.clone(),
+        fullscreen: template.fullscreen,
+        width: template.width,
+        height: template.height,
+    }
+}
+
+/// Launch values stored on this profile. Settings are not read again.
+pub fn instance_launch(instance: &Instance) -> GlobalLaunch {
+    GlobalLaunch {
+        max_memory_mb: instance.max_memory_mb,
+        jvm_arguments: instance.jvm_arguments.clone(),
+        fullscreen: instance.fullscreen,
+        width: instance.width,
+        height: instance.height,
     }
 }
 
@@ -180,6 +211,7 @@ fn entry_from(folder: String, instance: Instance) -> InstanceEntry {
         min_memory_mb: instance.min_memory_mb,
         max_memory_mb: instance.max_memory_mb,
         jvm_arguments: instance.jvm_arguments,
+        fullscreen: instance.fullscreen,
         width: instance.width,
         height: instance.height,
     }

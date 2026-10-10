@@ -4,9 +4,10 @@ use std::time::{Duration, Instant};
 
 use licht_core::{
     ASSET_OBJECT_BASE, Arch, CoreError, GameInstall, LaunchEnvironment, OsName, OutputStream,
-    SharedCache, fetch_version_manifest, install_game, installed_java, log_codec, offline_account,
-    parse_install_args, parse_launch_args, parse_version, parse_versions_args,
-    prepare_offline_launch, probe_java_major, required_java_major, run_game, version_lines,
+    SharedCache, configured_java, fetch_version_manifest, game_cache, global_launch, install_game,
+    installed_java, load_settings, log_codec, offline_account, parse_install_args,
+    parse_launch_args, parse_version, parse_versions_args, prepare_offline_launch,
+    probe_java_major, required_java_major, run_game, version_lines,
 };
 use tokio::sync::mpsc;
 
@@ -58,9 +59,10 @@ fn runtime() -> licht_core::Result<tokio::runtime::Runtime> {
 
 async fn install(args: &[String]) -> licht_core::Result<()> {
     let args = parse_install_args(args)?;
+    let settings_home = SharedCache::system()?;
     let cache = match &args.cache {
         Some(root) => SharedCache::at(root),
-        None => SharedCache::system()?,
+        None => game_cache(&settings_home)?,
     };
     let client = reqwest::Client::new();
     let manifest = fetch_version_manifest(&client).await?;
@@ -82,6 +84,7 @@ async fn install(args: &[String]) -> licht_core::Result<()> {
         install_game(
             &client,
             &cache,
+            &settings_home,
             GameInstall {
                 version_id: &version_id,
                 version_json_url: &version_url,
@@ -144,22 +147,28 @@ async fn versions(args: &[String]) -> licht_core::Result<i32> {
 
 async fn launch(args: &[String]) -> licht_core::Result<i32> {
     let args = parse_launch_args(args)?;
+    let settings_home = SharedCache::system()?;
     let cache = match &args.cache {
         Some(root) => SharedCache::at(root),
-        None => SharedCache::system()?,
+        None => game_cache(&settings_home)?,
     };
+    let settings = load_settings(&settings_home)?;
     let json = std::fs::read_to_string(cache.version_json(&args.version_id)?)?;
     let version = parse_version(&json)?;
     let environment = host_environment()?;
+    let required = required_java_major(&args.version_id, &version);
     let custom_java = args.java.is_some();
     let java = match args.java {
         Some(path) => path,
-        None => installed_java(&cache, &args.version_id, &version, &environment)?,
+        None => match configured_java(&settings, required) {
+            Some(path) => path,
+            None => installed_java(&cache, &args.version_id, &version, &environment)?,
+        },
     };
     let major = if custom_java {
         probe_java_major(&java)?
     } else {
-        required_java_major(&args.version_id, &version)
+        required
     };
     let codec = log_codec(major);
     let account = offline_account(&args.username)?;
@@ -171,6 +180,7 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
             path
         }
     };
+    let global = global_launch(&settings);
     let launch = prepare_offline_launch(
         &java,
         &cache,
@@ -179,6 +189,7 @@ async fn launch(args: &[String]) -> licht_core::Result<i32> {
         &environment,
         &account,
         &instance,
+        &global,
     )?;
 
     let (output, mut incoming) = mpsc::channel(32);

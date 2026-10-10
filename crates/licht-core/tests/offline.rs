@@ -4,14 +4,24 @@ use std::sync::Arc;
 
 use licht_core::{
     Arch, Artifact, AssetIndex, AssetIndexFile, AssetObject, CoreError, Download, DownloadProgress,
-    GameArguments, InstallPlan, LaunchEnvironment, Library, LibraryDownloads, OsName, SharedCache,
-    Version, VersionDownloads, install_version, offline_account, parse_launch_args,
+    GameArguments, GlobalLaunch, InstallPlan, LaunchEnvironment, Library, LibraryDownloads, OsName,
+    SharedCache, Version, VersionDownloads, install_version, offline_account, parse_launch_args,
     prepare_offline_launch,
 };
 use sha1::{Digest, Sha1};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, mpsc};
+
+fn plain_global() -> GlobalLaunch {
+    GlobalLaunch {
+        max_memory_mb: 2048,
+        jvm_arguments: Vec::new(),
+        fullscreen: false,
+        width: None,
+        height: None,
+    }
+}
 
 const CLIENT: &[u8] = b"client-jar";
 const LIBRARY: &[u8] = b"library-jar";
@@ -68,6 +78,7 @@ async fn an_installed_version_launches_offline_with_its_client_jar() {
     install_version(
         &reqwest::Client::new(),
         &cache,
+        &cache,
         InstallPlan {
             version_id: "demo",
             version: &version,
@@ -95,6 +106,7 @@ async fn an_installed_version_launches_offline_with_its_client_jar() {
         &environment,
         &account,
         &game,
+        &plain_global(),
     )
     .expect("command");
     let command = launch.command;
@@ -135,6 +147,7 @@ fn a_launchwrapper_version_uses_the_instance_as_its_default_folder() {
         &environment(),
         &account,
         &game,
+        &plain_global(),
     )
     .expect("launch");
     let played = game.join(".minecraft");
@@ -167,6 +180,7 @@ fn a_launchwrapper_version_uses_the_instance_as_its_default_folder() {
         &environment(),
         &account,
         &library_game,
+        &plain_global(),
     )
     .expect("library");
     assert!(by_library.appdata.is_some());
@@ -181,6 +195,7 @@ fn a_launchwrapper_version_uses_the_instance_as_its_default_folder() {
         &environment(),
         &account,
         &plain_game,
+        &plain_global(),
     )
     .expect("plain");
     assert!(plain.appdata.is_none());
@@ -230,6 +245,7 @@ fn a_launchwrapper_game_copies_resources_and_keeps_auth_session_literal() {
         &environment(),
         &offline_account("Steve").expect("account"),
         &game,
+        &plain_global(),
     )
     .expect("launch");
 

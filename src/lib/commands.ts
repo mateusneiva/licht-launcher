@@ -2,7 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { GameExit } from "@/lib/generated/GameExit";
 import type { InstanceEntry } from "@/lib/generated/InstanceEntry";
+import type { JavaDetections } from "@/lib/generated/JavaDetections";
+import type { JavaPaths } from "@/lib/generated/JavaPaths";
+import type { JavaStatus } from "@/lib/generated/JavaStatus";
 import type { Settings } from "@/lib/generated/Settings";
+import type { SettingsSnapshot } from "@/lib/generated/SettingsSnapshot";
 import type { VersionSummary } from "@/lib/generated/VersionSummary";
 
 export function listInstances(): Promise<InstanceEntry[]> {
@@ -38,14 +42,42 @@ export function openInstanceFolder(folder: string): Promise<void> {
   return invoke("open_instance_folder", { folder });
 }
 
-export function getSettings(): Promise<Settings> {
+export function openRepository(): Promise<void> {
+  return invoke("open_repository");
+}
+
+export function getSettings(): Promise<SettingsSnapshot> {
   return invoke("get_settings");
 }
 
-export function setDownloadConcurrency(
-  downloadConcurrency: number,
-): Promise<Settings> {
-  return invoke("set_download_concurrency", { downloadConcurrency });
+export function saveSettings(settings: Settings): Promise<Settings> {
+  return invoke("save_settings", { settings });
+}
+
+export function runtimeJava(): Promise<JavaPaths> {
+  return invoke("runtime_java");
+}
+
+export function javaInstallationStatus(paths: JavaPaths): Promise<JavaStatus> {
+  return invoke("java_installation_status", { paths });
+}
+
+export function detectJavaInstallations(): Promise<JavaDetections> {
+  return invoke("detect_java_installations");
+}
+
+export function installRecommendedJava(major: number): Promise<string> {
+  return invoke("install_recommended_java", { major });
+}
+
+export function browseJava(path: string): Promise<string | null> {
+  return invoke("browse_java", { path });
+}
+
+export function browseApplicationDirectory(
+  path: string,
+): Promise<string | null> {
+  return invoke("browse_application_directory", { path });
 }
 
 export function listVersions(): Promise<VersionSummary[]> {
@@ -57,8 +89,8 @@ export function installVersion(versionId: string): Promise<string> {
 }
 
 export function launchVersion(
-  versionId: string,
+  folder: string,
   username: string,
 ): Promise<GameExit> {
-  return invoke("launch", { versionId, username });
+  return invoke("launch", { folder, username });
 }

@@ -107,10 +107,12 @@ describe("VersionsPage", () => {
     expect(screen.getByRole("tab", { name: "Console" })).toBeInTheDocument();
     expect(await screen.findByText("1.20.1")).toBeInTheDocument();
     expect(screen.getByText("0.1.0 · Lilie")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
-      "href",
-      "/settings",
-    );
+    expect(
+      screen.getByRole("button", { name: "Settings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Settings" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText(
         "Unofficial, not affiliated with Mojang Studios or Microsoft.",
@@ -234,7 +236,7 @@ describe("VersionsPage", () => {
       if (command === "list_instances") {
         return Promise.resolve([
           {
-            folder: "1.5.2",
+            folder: "classic",
             name: "Classic",
             versionId: "1.5.2",
             minMemoryMb: 512,
@@ -292,7 +294,7 @@ describe("VersionsPage", () => {
     expect(await screen.findByText("Sound engine started")).toBeInTheDocument();
     expect(screen.queryByText("1.5.2")).not.toBeInTheDocument();
     expect(invoke).toHaveBeenCalledWith("launch", {
-      versionId: "1.5.2",
+      folder: "classic",
       username: "Mateus",
     });
   });
@@ -320,9 +322,7 @@ describe("VersionsPage", () => {
     });
 
     await renderAt("/");
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Abrir Pasta" }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: "Abrir Pasta" }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("open_instance_folder", {
         folder: "1.5.2",

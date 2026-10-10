@@ -27,6 +27,7 @@ export {
   SelectValue,
 } from "@/components/ui/select";
 export { Toaster } from "@/components/ui/sonner";
+export { Spinner } from "@/components/ui/spinner";
 export {
   Tabs,
   TabsContent,

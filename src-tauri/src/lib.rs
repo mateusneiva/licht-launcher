@@ -11,8 +11,12 @@ pub fn run() -> anyhow::Result<()> {
         "Starting Licht Launcher"
     );
 
+    let paths = commands::LauncherPaths::load().context("Failed to resolve Licht folders")?;
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .manage(paths)
         .manage(commands::OperationLock::new())
         .invoke_handler(tauri::generate_handler![
             commands::list_instances,
@@ -21,8 +25,15 @@ pub fn run() -> anyhow::Result<()> {
             commands::duplicate_instance,
             commands::delete_instance,
             commands::open_instance_folder,
+            commands::open_repository,
             commands::get_settings,
-            commands::set_download_concurrency,
+            commands::save_settings,
+            commands::runtime_java,
+            commands::java_installation_status,
+            commands::detect_java_installations,
+            commands::install_recommended_java,
+            commands::browse_java,
+            commands::browse_application_directory,
             commands::list_versions,
             commands::install_version,
             commands::launch

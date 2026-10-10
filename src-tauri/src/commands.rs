@@ -1,12 +1,17 @@
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use licht_core::{
-    ASSET_OBJECT_BASE, Arch, CoreError, GameExit, GameInstall, InstanceEntry, LaunchEnvironment,
-    OsName, Settings, SharedCache, VersionSummary, fetch_version_manifest, install_game,
-    installed_java, load_settings, log_codec, offline_account, parse_version,
-    prepare_offline_launch, required_java_major, run_game, save_settings, version_summaries,
+    ADOPTIUM_API, ASSET_OBJECT_BASE, Arch, CoreError, GameExit, GameInstall, InstanceEntry,
+    JavaDetections, JavaPaths, JavaStatus, LaunchEnvironment, OsName, Settings, SettingsSnapshot,
+    SharedCache, VersionSummary, browse_start_directory, configured_java, detect_known_javas,
+    fetch_version_manifest, game_cache, global_launch, install_game, install_temurin,
+    installed_java, load_instance, load_settings, log_codec, offline_account, parse_version,
+    prepare_offline_launch, required_java_major, run_game, runtime_java_paths, set_java_path,
+    settings_snapshot, version_summaries,
 };
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_dialog::{DialogExt, FileDialogBuilder};
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::{Mutex, MutexGuard, mpsc};
 
@@ -28,6 +33,22 @@ impl OperationLock {
         self.gate
             .try_lock()
             .map_err(|_| "another install or launch is already running".to_string())
+    }
+}
+
+/// Folders chosen when the process started. A saved data directory is used on the
+/// next start, so this process keeps the folders it opened with.
+#[derive(Clone)]
+pub struct LauncherPaths {
+    pub settings: SharedCache,
+    pub game: SharedCache,
+}
+
+impl LauncherPaths {
+    pub fn load() -> Result<Self, CoreError> {
+        let settings = SharedCache::system()?;
+        let game = game_cache(&settings)?;
+        Ok(Self { settings, game })
     }
 }
 
@@ -55,44 +76,70 @@ fn host_environment() -> Result<LaunchEnvironment, CoreError> {
     })
 }
 
-fn instances_root() -> Result<std::path::PathBuf, CoreError> {
-    SharedCache::system()?.instances_dir()
+fn instances_root(paths: &LauncherPaths) -> Result<std::path::PathBuf, CoreError> {
+    paths.game.instances_dir()
 }
 
 #[tauri::command]
-pub fn list_instances() -> Result<Vec<InstanceEntry>, String> {
-    let root = instances_root().map_err(failure)?;
+pub fn list_instances(paths: State<'_, LauncherPaths>) -> Result<Vec<InstanceEntry>, String> {
+    let root = instances_root(&paths).map_err(failure)?;
     licht_core::list_instances(&root).map_err(failure)
 }
 
 #[tauri::command]
-pub fn create_instance(name: String, version_id: String) -> Result<InstanceEntry, String> {
-    let root = instances_root().map_err(failure)?;
-    licht_core::create_instance(&root, &name, &version_id).map_err(failure)
+pub fn create_instance(
+    paths: State<'_, LauncherPaths>,
+    name: String,
+    version_id: String,
+) -> Result<InstanceEntry, String> {
+    let root = instances_root(&paths).map_err(failure)?;
+    let settings = load_settings(&paths.settings).map_err(failure)?;
+    licht_core::create_instance(&root, &name, &version_id, &global_launch(&settings))
+        .map_err(failure)
 }
 
 #[tauri::command]
-pub fn rename_instance(folder: String, name: String) -> Result<InstanceEntry, String> {
-    let root = instances_root().map_err(failure)?;
+pub fn rename_instance(
+    paths: State<'_, LauncherPaths>,
+    folder: String,
+    name: String,
+) -> Result<InstanceEntry, String> {
+    let root = instances_root(&paths).map_err(failure)?;
     licht_core::rename_instance(&root, &folder, &name).map_err(failure)
 }
 
 #[tauri::command]
-pub fn duplicate_instance(folder: String, name: String) -> Result<InstanceEntry, String> {
-    let root = instances_root().map_err(failure)?;
+pub fn duplicate_instance(
+    paths: State<'_, LauncherPaths>,
+    folder: String,
+    name: String,
+) -> Result<InstanceEntry, String> {
+    let root = instances_root(&paths).map_err(failure)?;
     licht_core::duplicate_instance(&root, &folder, &name).map_err(failure)
 }
 
 #[tauri::command]
-pub fn delete_instance(folder: String) -> Result<(), String> {
-    let root = instances_root().map_err(failure)?;
+pub fn delete_instance(paths: State<'_, LauncherPaths>, folder: String) -> Result<(), String> {
+    let root = instances_root(&paths).map_err(failure)?;
     licht_core::delete_instance(&root, &folder).map_err(failure)
 }
 
+const REPOSITORY_URL: &str = "https://github.com/mateusneiva/licht-launcher";
+
 #[tauri::command]
-pub fn open_instance_folder(app: AppHandle, folder: String) -> Result<(), String> {
-    let cache = SharedCache::system().map_err(failure)?;
-    let path = cache.instance_dir(&folder).map_err(failure)?;
+pub fn open_repository(app: AppHandle) -> Result<(), String> {
+    app.opener()
+        .open_url(REPOSITORY_URL, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn open_instance_folder(
+    app: AppHandle,
+    paths: State<'_, LauncherPaths>,
+    folder: String,
+) -> Result<(), String> {
+    let path = paths.game.instance_dir(&folder).map_err(failure)?;
     if !path.is_dir() {
         return Err("instance directory is missing".to_string());
     }
@@ -102,20 +149,137 @@ pub fn open_instance_folder(app: AppHandle, folder: String) -> Result<(), String
 }
 
 #[tauri::command]
-pub fn get_settings() -> Result<Settings, String> {
-    let cache = SharedCache::system().map_err(failure)?;
-    load_settings(&cache).map_err(failure)
+pub fn get_settings(paths: State<'_, LauncherPaths>) -> Result<SettingsSnapshot, String> {
+    settings_snapshot(&paths.settings).map_err(failure)
 }
 
 #[tauri::command]
-pub fn set_download_concurrency(download_concurrency: u32) -> Result<Settings, String> {
-    let cache = SharedCache::system().map_err(failure)?;
-    save_settings(&cache, download_concurrency).map_err(failure)
+pub fn save_settings(
+    paths: State<'_, LauncherPaths>,
+    settings: Settings,
+) -> Result<Settings, String> {
+    licht_core::save_settings(&paths.settings, &settings).map_err(failure)
 }
 
 #[tauri::command]
-pub async fn list_versions() -> Result<Vec<VersionSummary>, String> {
-    let cache = SharedCache::system().map_err(failure)?;
+pub fn runtime_java(paths: State<'_, LauncherPaths>) -> Result<JavaPaths, String> {
+    let environment = host_environment().map_err(failure)?;
+    runtime_java_paths(&paths.game, &environment).map_err(failure)
+}
+
+#[tauri::command]
+pub async fn java_installation_status(paths: JavaPaths) -> Result<JavaStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || licht_core::java_installation_status(&paths))
+        .await
+        .map_err(|_| "Java check failed".to_string())
+}
+
+#[tauri::command]
+pub async fn detect_java_installations(
+    paths: State<'_, LauncherPaths>,
+) -> Result<JavaDetections, String> {
+    let game = paths.game.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let environment = host_environment().map_err(failure)?;
+        Ok(detect_known_javas(&game, environment.os))
+    })
+    .await
+    .map_err(|_| "Java check failed".to_string())?
+}
+
+#[tauri::command]
+pub async fn install_recommended_java(
+    paths: State<'_, LauncherPaths>,
+    state: State<'_, OperationLock>,
+    major: u32,
+) -> Result<String, String> {
+    if !matches!(major, 25 | 21 | 17 | 8) {
+        return Err(CoreError::SettingsJava.to_string());
+    }
+    let _guard = state.try_begin()?;
+    let game = paths.game.clone();
+    let settings = paths.settings.clone();
+    let environment = host_environment().map_err(failure)?;
+    let executable = install_temurin(
+        &reqwest::Client::new(),
+        &game,
+        major,
+        &environment,
+        ADOPTIUM_API,
+        tokio::sync::mpsc::channel(8).0,
+    )
+    .await
+    .map_err(failure)?;
+    set_java_path(&settings, major, &executable).map_err(failure)?;
+    Ok(executable.display().to_string())
+}
+
+fn picked_path(file: Option<tauri_plugin_dialog::FilePath>) -> Result<Option<String>, String> {
+    let Some(file) = file else {
+        return Ok(None);
+    };
+    match file.into_path() {
+        Ok(path) => Ok(Some(path.display().to_string())),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn starting_directory(current: &str, fallback: &Path) -> Result<PathBuf, String> {
+    let directory = browse_start_directory(current, fallback);
+    if !directory.is_dir() {
+        std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    }
+    Ok(directory)
+}
+
+fn owned_file_dialog(app: &AppHandle) -> FileDialogBuilder<tauri::Wry> {
+    let mut dialog = app.dialog().file();
+    if let Some(window) = app.get_webview_window("main") {
+        dialog = dialog.set_parent(&window);
+    }
+    dialog
+}
+
+#[tauri::command]
+pub async fn browse_java(
+    app: AppHandle,
+    paths: State<'_, LauncherPaths>,
+    path: String,
+) -> Result<Option<String>, String> {
+    let directory = starting_directory(&path, &paths.game.root().join("runtime"))?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    owned_file_dialog(&app)
+        .set_directory(&directory)
+        .pick_file(move |file| {
+            let _ = sender.send(file);
+        });
+    let file = receiver.await.map_err(|_| "browse failed".to_string())?;
+    picked_path(file)
+}
+
+#[tauri::command]
+pub async fn browse_application_directory(
+    app: AppHandle,
+    paths: State<'_, LauncherPaths>,
+    path: String,
+) -> Result<Option<String>, String> {
+    let Some(fallback) = paths.settings.root().parent() else {
+        return Err("application directory is missing".to_string());
+    };
+    let directory = starting_directory(&path, fallback)?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    owned_file_dialog(&app)
+        .set_directory(&directory)
+        .pick_folder(move |file| {
+            let _ = sender.send(file);
+        });
+    let file = receiver.await.map_err(|_| "browse failed".to_string())?;
+    picked_path(file)
+}
+
+#[tauri::command]
+pub async fn list_versions(paths: State<'_, LauncherPaths>) -> Result<Vec<VersionSummary>, String> {
+    let cache = paths.game.clone();
     let manifest = fetch_version_manifest(&reqwest::Client::new())
         .await
         .map_err(failure)?;
@@ -125,15 +289,24 @@ pub async fn list_versions() -> Result<Vec<VersionSummary>, String> {
 #[tauri::command]
 pub async fn install_version(
     app: AppHandle,
+    paths: State<'_, LauncherPaths>,
     state: State<'_, OperationLock>,
     version_id: String,
 ) -> Result<String, String> {
     let _guard = state.try_begin()?;
-    install_one(&app, &version_id).await.map_err(failure)
+    install_one(&app, &paths.game, &paths.settings, &version_id)
+        .await
+        .map_err(failure)
 }
 
-async fn install_one(app: &AppHandle, version_id: &str) -> Result<String, CoreError> {
-    let cache = SharedCache::system()?;
+async fn install_one(
+    app: &AppHandle,
+    game: &SharedCache,
+    settings: &SharedCache,
+    version_id: &str,
+) -> Result<String, CoreError> {
+    let cache = game.clone();
+    let settings = settings.clone();
     let client = reqwest::Client::new();
     let manifest = fetch_version_manifest(&client).await?;
     let Some(entry) = manifest
@@ -153,6 +326,7 @@ async fn install_one(app: &AppHandle, version_id: &str) -> Result<String, CoreEr
         install_game(
             &client,
             &cache,
+            &settings,
             GameInstall {
                 version_id: &id,
                 version_json_url: &version_url,
@@ -182,38 +356,50 @@ async fn install_one(app: &AppHandle, version_id: &str) -> Result<String, CoreEr
 #[tauri::command]
 pub async fn launch(
     app: AppHandle,
+    paths: State<'_, LauncherPaths>,
     state: State<'_, OperationLock>,
-    version_id: String,
+    folder: String,
     username: String,
 ) -> Result<GameExit, String> {
     let _guard = state.try_begin()?;
-    launch_one(&app, &version_id, &username)
+    launch_one(&app, &paths.game, &paths.settings, &folder, &username)
         .await
         .map_err(failure)
 }
 
 async fn launch_one(
     app: &AppHandle,
-    version_id: &str,
+    game: &SharedCache,
+    settings_home: &SharedCache,
+    folder: &str,
     username: &str,
 ) -> Result<GameExit, CoreError> {
-    let cache = SharedCache::system()?;
-    let json = std::fs::read_to_string(cache.version_json(version_id)?)?;
+    let cache = game.clone();
+    let settings = load_settings(settings_home)?;
+    let dir = cache.instance_dir(folder)?;
+    let profile = load_instance(&dir)?;
+    let version_id = profile.version_id.clone();
+    let json = std::fs::read_to_string(cache.version_json(&version_id)?)?;
     let version = parse_version(&json)?;
     let environment = host_environment()?;
-    let java = installed_java(&cache, version_id, &version, &environment)?;
-    let codec = log_codec(required_java_major(version_id, &version));
+    let major = required_java_major(&version_id, &version);
+    let java = match configured_java(&settings, major) {
+        Some(path) => path,
+        None => installed_java(&cache, &version_id, &version, &environment)?,
+    };
+    let codec = log_codec(major);
     let account = offline_account(username)?;
-    let instance = cache.instance_dir(version_id)?;
-    std::fs::create_dir_all(&instance)?;
+    // An instance does not override these values until it has its own config.
+    let global = global_launch(&settings);
     let prepared = prepare_offline_launch(
         &java,
         &cache,
-        version_id,
+        &version_id,
         &version,
         &environment,
         &account,
-        &instance,
+        &dir,
+        &global,
     )?;
 
     let (output, mut incoming) = mpsc::channel(32);

@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use licht_core::{
-    CoreError, create_instance, delete_instance, duplicate_instance, list_instances, load_instance,
-    parse_instance, rename_instance,
+    CoreError, GlobalLaunch, create_instance, delete_instance, duplicate_instance, instance_launch,
+    list_instances, load_instance, parse_instance, rename_instance,
 };
 
 fn scratch(name: &str) -> PathBuf {
@@ -11,6 +11,16 @@ fn scratch(name: &str) -> PathBuf {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).expect("scratch directory");
     root
+}
+
+fn plain_template() -> GlobalLaunch {
+    GlobalLaunch {
+        max_memory_mb: 2048,
+        jvm_arguments: Vec::new(),
+        fullscreen: false,
+        width: None,
+        height: None,
+    }
 }
 
 fn write(dir: &Path, name: &str, body: &str) {
@@ -31,6 +41,7 @@ fn a_folder_without_a_file_gains_schema_one() {
     assert_eq!(instance.min_memory_mb, 512);
     assert_eq!(instance.max_memory_mb, 2048);
     assert!(instance.jvm_arguments.is_empty());
+    assert!(!instance.fullscreen);
     assert_eq!(instance.width, None);
     assert_eq!(instance.height, None);
 
@@ -69,6 +80,7 @@ fn schema_one_is_read_back_unchanged() {
     assert_eq!(instance.min_memory_mb, 1024);
     assert_eq!(instance.max_memory_mb, 4096);
     assert_eq!(instance.jvm_arguments, vec!["-XX:+UseG1GC".to_string()]);
+    assert!(!instance.fullscreen);
     assert_eq!(instance.width, Some(1280));
     assert_eq!(instance.height, Some(720));
     assert_eq!(
@@ -158,17 +170,18 @@ fn create_rename_duplicate_and_delete_keep_the_folder_stable() {
     let root = scratch("crud");
     let instances = root.join("instances");
 
-    let created = create_instance(&instances, " My World ", "1.20.1").expect("create");
+    let created =
+        create_instance(&instances, " My World ", "1.20.1", &plain_template()).expect("create");
     assert_eq!(created.folder, "My-World");
     assert_eq!(created.name, "My World");
     assert_eq!(created.version_id, "1.20.1");
     assert!(instances.join("My-World").join("instance.json").is_file());
     assert!(matches!(
-        create_instance(&instances, "My World", "1.20.1"),
+        create_instance(&instances, "My World", "1.20.1", &plain_template()),
         Err(CoreError::InstanceExists)
     ));
     assert!(matches!(
-        create_instance(&instances, "   ", "1.20.1"),
+        create_instance(&instances, "   ", "1.20.1", &plain_template()),
         Err(CoreError::InstanceName)
     ));
 
@@ -207,8 +220,57 @@ fn create_rename_duplicate_and_delete_keep_the_folder_stable() {
     );
     assert!(instances.join("My-World").is_dir());
 
+    let stored = load_instance(&instances.join("My-World")).expect("stored");
+    assert_eq!(instance_launch(&stored), plain_template());
+    assert_eq!(stored.min_memory_mb, 512);
+
     delete_instance(&instances, "Survival-copy").expect("delete");
     assert!(!instances.join("Survival-copy").exists());
     assert!(instances.join("My-World").is_dir());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_new_instance_copies_the_template_and_leaves_an_older_one_alone() {
+    let root = scratch("template");
+    let instances = root.join("instances");
+    let template = GlobalLaunch {
+        max_memory_mb: 4096,
+        jvm_arguments: vec!["-XX:+UseG1GC".to_string()],
+        fullscreen: true,
+        width: Some(854),
+        height: Some(480),
+    };
+    let created = create_instance(&instances, "New World", "1.21.1", &template).expect("create");
+    assert!(created.fullscreen);
+    assert_eq!(created.max_memory_mb, 4096);
+    assert_eq!(created.jvm_arguments, vec!["-XX:+UseG1GC".to_string()]);
+    assert_eq!(created.width, Some(854));
+    assert_eq!(created.height, Some(480));
+    assert_eq!(created.min_memory_mb, 512);
+
+    let older = instances.join("Older");
+    write(
+        &older,
+        "instance.json",
+        r#"{
+  "schema": 1,
+  "name": "Older",
+  "versionId": "1.20.1",
+  "minMemoryMb": 512,
+  "maxMemoryMb": 2048,
+  "jvmArguments": [],
+  "width": 1280,
+  "height": 720
+}"#,
+    );
+    let before = fs::read_to_string(older.join("instance.json")).expect("original");
+    let loaded = load_instance(&older).expect("older");
+    assert!(!loaded.fullscreen);
+    assert_eq!(loaded.width, Some(1280));
+    assert_eq!(
+        fs::read_to_string(older.join("instance.json")).expect("untouched"),
+        before
+    );
     let _ = fs::remove_dir_all(root);
 }

@@ -1,15 +1,62 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use licht_core::{
-    Arch, CoreError, JavaChoice, JavaRuntimeEntry, OsName, SharedCache, default_java_roots,
-    discover_javas, install_java, matching_java, parse_java_runtime_index,
+    Arch, CoreError, JavaChoice, JavaPaths, JavaRuntimeEntry, LaunchEnvironment, OsName,
+    SharedCache, browse_start_directory, default_java_roots, discover_javas, install_java,
+    java_detect_roots, java_installation_status, matching_java, parse_java_runtime_index,
     parse_java_runtime_manifest, parse_java_version, parse_version, probe_java_major,
-    required_runtime, select_runtime, validate_java,
+    required_runtime, runtime_java_paths, select_runtime, validate_java,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
+
+#[test]
+fn an_installed_runtime_java_is_offered_and_a_missing_file_is_invalid() {
+    let root = std::env::temp_dir().join(format!("licht-runtime-java-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let cache = SharedCache::at(&root);
+    let environment = LaunchEnvironment {
+        os: OsName::Windows,
+        arch: Arch::X86_64,
+        os_version: String::new(),
+        features: BTreeMap::new(),
+    };
+    let executable = root
+        .join("runtime")
+        .join("temurin21-jre21.0.7-win_x64")
+        .join("bin")
+        .join("java.exe");
+    std::fs::create_dir_all(executable.parent().expect("bin")).expect("runtime");
+    std::fs::write(&executable, b"not a java").expect("file");
+
+    assert!(
+        java_detect_roots(&cache, OsName::Windows)
+            .iter()
+            .any(|path| path == &cache.root().join("runtime"))
+    );
+    let paths = runtime_java_paths(&cache, &environment).expect("runtime");
+    assert_eq!(
+        paths.java21.as_deref(),
+        Some(executable.to_str().expect("utf8"))
+    );
+    assert!(paths.java25.is_none());
+    assert!(paths.java17.is_none());
+    assert!(paths.java8.is_none());
+
+    let status = java_installation_status(&JavaPaths {
+        java21: Some(root.join("missing.exe").display().to_string()),
+        ..JavaPaths::default()
+    });
+    assert!(!status.java25);
+    assert!(!status.java21);
+    assert!(!status.java17);
+    assert!(!status.java8);
+
+    let _ = std::fs::remove_dir_all(root);
+}
 
 #[test]
 fn saved_versions_name_their_runtime() {
@@ -113,6 +160,7 @@ async fn a_custom_java_is_used_without_downloading() {
     let installed = install_java(
         &reqwest::Client::new(),
         &cache,
+        &cache,
         JavaChoice::Custom(&executable),
         progress,
     )
@@ -123,6 +171,7 @@ async fn a_custom_java_is_used_without_downloading() {
     let missing_path = directory.join("missing.exe");
     let missing = install_java(
         &reqwest::Client::new(),
+        &cache,
         &cache,
         JavaChoice::Custom(&missing_path),
         mpsc::channel(1).0,
@@ -145,6 +194,7 @@ async fn the_mojang_runtime_is_installed_once() {
 
     let installed = install_java(
         &reqwest::Client::new(),
+        &cache,
         &cache,
         JavaChoice::Mojang {
             component: "java-runtime-delta",
@@ -175,6 +225,7 @@ async fn the_mojang_runtime_is_installed_once() {
     let (progress, _incoming) = mpsc::channel(4);
     install_java(
         &reqwest::Client::new(),
+        &cache,
         &cache,
         JavaChoice::Mojang {
             component: "java-runtime-delta",
@@ -255,6 +306,62 @@ fn discovery_finds_binaries_and_ignores_a_missing_root() {
         vec![macos]
     );
     assert!(discover_javas(&[root.join("missing")], OsName::Linux).is_empty());
+}
+
+#[test]
+fn browse_starts_in_the_existing_folder_or_the_fallback() {
+    let root = std::env::temp_dir().join(format!("licht-java-browse-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let runtime = root.join("runtime");
+    let bin = root.join("jdk").join("bin");
+    std::fs::create_dir_all(&bin).expect("bin");
+    let executable = bin.join("java.exe");
+    std::fs::write(&executable, b"java").expect("file");
+
+    assert_eq!(
+        browse_start_directory(executable.to_str().expect("utf8"), &runtime),
+        bin
+    );
+    assert_eq!(
+        browse_start_directory(bin.to_str().expect("utf8"), &runtime),
+        bin
+    );
+    assert_eq!(browse_start_directory("", &runtime), runtime);
+    assert_eq!(browse_start_directory("   ", &runtime), runtime);
+    assert_eq!(
+        browse_start_directory(
+            root.join("missing")
+                .join("java.exe")
+                .to_str()
+                .expect("utf8"),
+            &runtime
+        ),
+        runtime
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_release_file_reports_the_major_without_running_java() {
+    let root = std::env::temp_dir().join(format!("licht-java-release-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let home = root.join("temurin21");
+    let executable = home.join("bin").join("java.exe");
+    std::fs::create_dir_all(executable.parent().expect("bin")).expect("runtime");
+    std::fs::write(&executable, b"not a java").expect("binary");
+    std::fs::write(home.join("release"), "JAVA_VERSION=\"21.0.7\"\n").expect("release");
+    assert_eq!(probe_java_major(&executable).expect("release"), 21);
+
+    let eight = root.join("temurin8").join("bin").join("java.exe");
+    std::fs::create_dir_all(eight.parent().expect("bin")).expect("runtime");
+    std::fs::write(&eight, b"not a java").expect("binary");
+    std::fs::write(
+        root.join("temurin8").join("release"),
+        "JAVA_VERSION=\"1.8.0_432\"\n",
+    )
+    .expect("release");
+    assert_eq!(probe_java_major(&eight).expect("java 8"), 8);
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
