@@ -33,10 +33,7 @@ export function DownloadsSection({
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between gap-3">
-            <h3
-              id="download-concurrency-label"
-              className="text-sm font-medium"
-            >
+            <h3 id="download-concurrency-label" className="text-sm font-medium">
               Concurrency
             </h3>
             <span className="text-sm text-muted-foreground">

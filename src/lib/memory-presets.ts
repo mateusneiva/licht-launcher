@@ -1,7 +1,5 @@
 /** Common allocation stops; filtered by the machine maximum. */
-const MEMORY_LADDER_MB = [
-  2048, 4096, 6144, 8192, 10240, 12288, 16384,
-] as const;
+const MEMORY_LADDER_MB = [2048, 4096, 6144, 8192, 10240, 12288, 16384] as const;
 
 /** Discrete memory choices within the machine limits. */
 export function memoryPresetOptions(input: {
@@ -27,10 +25,7 @@ export function memoryPresetOptions(input: {
   if (ceiling >= input.minimumMb) {
     options.add(ceiling);
   }
-  if (
-    input.currentMb >= input.minimumMb &&
-    input.currentMb <= ceiling
-  ) {
+  if (input.currentMb >= input.minimumMb && input.currentMb <= ceiling) {
     options.add(input.currentMb);
   }
   return [...options].sort((left, right) => left - right);

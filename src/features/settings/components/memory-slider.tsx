@@ -103,8 +103,7 @@ export function MemorySlider({
       <div className="relative h-8 w-full">
         {options.map((mb, optionIndex) => {
           const selected = mb === valueMb;
-          const percent =
-            lastIndex === 0 ? 0 : (optionIndex / lastIndex) * 100;
+          const percent = lastIndex === 0 ? 0 : (optionIndex / lastIndex) * 100;
           const isEnd =
             options.length > 1 &&
             (optionIndex === 0 || optionIndex === lastIndex);

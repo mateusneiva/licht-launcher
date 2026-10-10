@@ -73,14 +73,19 @@ export function EditInstanceVersionDialog({
               Vanilla
             </div>
           </div>
-          <label className="flex flex-col gap-1 text-sm font-medium">
-            Game version
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium" id="edit-game-version-label">
+              Game version
+            </span>
             <Select
               value={draftVersion}
               disabled={busy || versionChoices.length === 0}
               onValueChange={setDraftVersion}
             >
-              <SelectTrigger aria-label="Game version" className="w-full font-normal">
+              <SelectTrigger
+                aria-labelledby="edit-game-version-label"
+                className="w-full font-normal"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -92,7 +97,7 @@ export function EditInstanceVersionDialog({
                 ))}
               </SelectContent>
             </Select>
-          </label>
+          </div>
         </div>
         <DialogFooter>
           <Button
