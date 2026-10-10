@@ -3,12 +3,13 @@ use std::path::{Path, PathBuf};
 
 use licht_core::{
     ADOPTIUM_API, ASSET_OBJECT_BASE, Arch, CoreError, GameExit, GameInstall, InstanceEntry,
-    JavaDetections, JavaPaths, JavaStatus, LaunchEnvironment, OsName, Settings, SettingsSnapshot,
-    SharedCache, VersionSummary, browse_start_directory, configured_java, detect_known_javas,
-    fetch_version_manifest, game_cache, global_launch, install_game, install_temurin,
-    installed_java, load_instance, load_settings, log_codec, offline_account, parse_version,
-    prepare_offline_launch, required_java_major, run_game, runtime_java_paths, set_java_path,
-    settings_snapshot, version_summaries,
+    InstanceSettings, JavaDetections, JavaPaths, JavaStatus, LaunchEnvironment, OsName, Settings,
+    SettingsSnapshot, SharedCache, VersionSummary, browse_start_directory, configured_java,
+    detect_known_javas, fetch_version_manifest, game_cache, global_launch, install_game,
+    install_temurin, installed_java, load_instance, load_settings, log_codec, offline_account,
+    parse_version, prepare_offline_launch, probe_java_major, required_java_major,
+    resolved_java_path, resolved_launch, run_game, runtime_java_paths, set_java_path,
+    settings_snapshot, update_instance, update_instance_version, version_summaries,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder};
@@ -122,6 +123,26 @@ pub fn duplicate_instance(
 pub fn delete_instance(paths: State<'_, LauncherPaths>, folder: String) -> Result<(), String> {
     let root = instances_root(&paths).map_err(failure)?;
     licht_core::delete_instance(&root, &folder).map_err(failure)
+}
+
+#[tauri::command]
+pub fn save_instance(
+    paths: State<'_, LauncherPaths>,
+    folder: String,
+    settings: InstanceSettings,
+) -> Result<InstanceEntry, String> {
+    let root = instances_root(&paths).map_err(failure)?;
+    update_instance(&root, &folder, &settings).map_err(failure)
+}
+
+#[tauri::command]
+pub fn set_instance_version(
+    paths: State<'_, LauncherPaths>,
+    folder: String,
+    version_id: String,
+) -> Result<InstanceEntry, String> {
+    let root = instances_root(&paths).map_err(failure)?;
+    update_instance_version(&root, &folder, &version_id).map_err(failure)
 }
 
 const REPOSITORY_URL: &str = "https://github.com/mateusneiva/licht-launcher";
@@ -382,15 +403,23 @@ async fn launch_one(
     let json = std::fs::read_to_string(cache.version_json(&version_id)?)?;
     let version = parse_version(&json)?;
     let environment = host_environment()?;
-    let major = required_java_major(&version_id, &version);
-    let java = match configured_java(&settings, major) {
-        Some(path) => path,
-        None => installed_java(&cache, &version_id, &version, &environment)?,
+    let required = required_java_major(&version_id, &version);
+    let custom_java = resolved_java_path(&profile);
+    let java = match &custom_java {
+        Some(path) => path.clone(),
+        None => match configured_java(&settings, required) {
+            Some(path) => path,
+            None => installed_java(&cache, &version_id, &version, &environment)?,
+        },
+    };
+    let major = if custom_java.is_some() {
+        probe_java_major(&java)?
+    } else {
+        required
     };
     let codec = log_codec(major);
     let account = offline_account(username)?;
-    // An instance does not override these values until it has its own config.
-    let global = global_launch(&settings);
+    let launch = resolved_launch(&profile, &global_launch(&settings));
     let prepared = prepare_offline_launch(
         &java,
         &cache,
@@ -399,7 +428,7 @@ async fn launch_one(
         &environment,
         &account,
         &dir,
-        &global,
+        &launch,
     )?;
 
     let (output, mut incoming) = mpsc::channel(32);

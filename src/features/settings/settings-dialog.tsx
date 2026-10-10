@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
@@ -10,12 +10,20 @@ import type { SectionId } from "@/features/settings/model/sections";
 export function SettingsDialog({
   open,
   onOpenChange,
+  initialSection = "appearance",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialSection?: SectionId;
 }) {
-  const [section, setSection] = useState<SectionId>("appearance");
+  const [section, setSection] = useState<SectionId>(initialSection);
   const { draft, snapshot, update, flush } = useSettingsDraft(open);
+
+  useEffect(() => {
+    if (open) {
+      setSection(initialSection);
+    }
+  }, [open, initialSection]);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
@@ -26,7 +34,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex h-3/4 max-h-screen gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent className="flex h-3/4 max-h-screen gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <SettingsSidebar section={section} onSectionChange={setSection} />
         {draft && snapshot ? (
           <SettingsPanel

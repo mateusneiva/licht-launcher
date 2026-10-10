@@ -242,8 +242,14 @@ describe("VersionsPage", () => {
             minMemoryMb: 512,
             maxMemoryMb: 2048,
             jvmArguments: [],
+            fullscreen: false,
             width: null,
             height: null,
+            overrideWindow: false,
+            overrideMemory: false,
+            overrideJava: false,
+            overrideJvmArguments: false,
+            javaPath: null,
           },
         ]);
       }
@@ -299,7 +305,7 @@ describe("VersionsPage", () => {
     });
   });
 
-  it("opens the instance folder", async () => {
+  it("shows configure without manage actions on the home list", async () => {
     invoke.mockImplementation((command: string) => {
       if (command === "list_instances") {
         return Promise.resolve([
@@ -310,8 +316,14 @@ describe("VersionsPage", () => {
             minMemoryMb: 512,
             maxMemoryMb: 2048,
             jvmArguments: [],
+            fullscreen: false,
             width: null,
             height: null,
+            overrideWindow: false,
+            overrideMemory: false,
+            overrideJava: false,
+            overrideJvmArguments: false,
+            javaPath: null,
           },
         ]);
       }
@@ -322,12 +334,21 @@ describe("VersionsPage", () => {
     });
 
     await renderAt("/");
-    fireEvent.click(await screen.findByRole("button", { name: "Abrir Pasta" }));
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith("open_instance_folder", {
-        folder: "1.5.2",
-      });
-    });
+    expect(
+      await screen.findByRole("button", { name: "Configure Classic" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Abrir Pasta" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Rename" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Duplicate" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete" }),
+    ).not.toBeInTheDocument();
   });
 
   it("creates an instance from an installed version", async () => {
@@ -347,8 +368,14 @@ describe("VersionsPage", () => {
         minMemoryMb: 512,
         maxMemoryMb: 2048,
         jvmArguments: [],
+        fullscreen: false,
         width: null,
         height: null,
+        overrideWindow: false,
+        overrideMemory: false,
+        overrideJava: false,
+        overrideJvmArguments: false,
+        javaPath: null,
       });
     });
 

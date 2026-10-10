@@ -29,8 +29,9 @@ pub use install::{
     parse_install_args,
 };
 pub use instance::{
-    Instance, InstanceEntry, create_instance, delete_instance, duplicate_instance, instance_launch,
-    list_instances, load_instance, parse_instance, rename_instance,
+    Instance, InstanceEntry, InstanceSettings, create_instance, delete_instance,
+    duplicate_instance, instance_launch, list_instances, load_instance, parse_instance,
+    rename_instance, resolved_java_path, resolved_launch, update_instance, update_instance_version,
 };
 pub use java::{
     ADOPTIUM_API, JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaDetections, JavaPaths, JavaRuntimeBuild,

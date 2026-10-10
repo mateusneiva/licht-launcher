@@ -24,7 +24,7 @@ describe("DownloadsSection", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Downloads" }));
 
     expect(
-      screen.getByText("This change applies after restart."),
+      screen.getByText(/This change applies after restart\./),
     ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Application directory"), {
       target: { value: "D:\\Games" },

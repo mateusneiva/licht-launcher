@@ -6,6 +6,7 @@ function Slider({
   className,
   defaultValue,
   value,
+  children,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
   return (
@@ -28,9 +29,10 @@ function Slider({
           className="absolute h-full bg-primary"
         />
       </SliderPrimitive.Track>
+      {children}
       <SliderPrimitive.Thumb
         data-slot="slider-thumb"
-        className="block size-4 rounded-full border border-primary bg-background outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="relative z-20 block size-4 rounded-full border border-primary bg-white outline-none focus-visible:ring-3 focus-visible:ring-white/80"
       />
     </SliderPrimitive.Root>
   );

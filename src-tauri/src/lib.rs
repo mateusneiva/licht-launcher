@@ -24,6 +24,8 @@ pub fn run() -> anyhow::Result<()> {
             commands::rename_instance,
             commands::duplicate_instance,
             commands::delete_instance,
+            commands::save_instance,
+            commands::set_instance_version,
             commands::open_instance_folder,
             commands::open_repository,
             commands::get_settings,

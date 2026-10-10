@@ -29,18 +29,49 @@ pub struct Instance {
     pub fullscreen: bool,
     pub width: Option<u32>,
     pub height: Option<u32>,
+    #[serde(default)]
+    pub override_window: bool,
+    #[serde(default)]
+    pub override_memory: bool,
+    #[serde(default)]
+    pub override_java: bool,
+    #[serde(default)]
+    pub override_jvm_arguments: bool,
+    #[serde(default)]
+    pub java_path: Option<String>,
 }
 
 /// An instance folder and the profile stored in it.
 ///
 /// `folder` is chosen once and does not change when the profile is renamed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceEntry {
     pub folder: String,
     pub name: String,
     pub version_id: String,
     pub min_memory_mb: u32,
+    pub max_memory_mb: u32,
+    pub jvm_arguments: Vec<String>,
+    pub fullscreen: bool,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub override_window: bool,
+    pub override_memory: bool,
+    pub override_java: bool,
+    pub override_jvm_arguments: bool,
+    pub java_path: Option<String>,
+}
+
+/// Launch personalization written from the instance settings dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceSettings {
+    pub override_window: bool,
+    pub override_memory: bool,
+    pub override_java: bool,
+    pub override_jvm_arguments: bool,
+    pub java_path: Option<String>,
     pub max_memory_mb: u32,
     pub jvm_arguments: Vec<String>,
     pub fullscreen: bool,
@@ -164,6 +195,44 @@ pub fn delete_instance(instances_dir: &Path, folder: &str) -> Result<()> {
     Ok(())
 }
 
+/// Writes launch personalization. Name and version stay as stored on disk.
+pub fn update_instance(
+    instances_dir: &Path,
+    folder: &str,
+    settings: &InstanceSettings,
+) -> Result<InstanceEntry> {
+    let dir = instance_dir(instances_dir, folder)?;
+    let mut instance = load_instance(&dir)?;
+    instance.override_window = settings.override_window;
+    instance.override_memory = settings.override_memory;
+    instance.override_java = settings.override_java;
+    instance.override_jvm_arguments = settings.override_jvm_arguments;
+    instance.java_path = normalize_java_path(settings.java_path.as_deref());
+    instance.max_memory_mb = settings.max_memory_mb;
+    instance.jvm_arguments = settings.jvm_arguments.clone();
+    instance.fullscreen = settings.fullscreen;
+    instance.width = settings.width;
+    instance.height = settings.height;
+    validate(&instance)?;
+    write_instance(&dir, &instance)?;
+    Ok(entry_from(folder.to_string(), instance))
+}
+
+/// Points the instance at another game version. Does not download files.
+pub fn update_instance_version(
+    instances_dir: &Path,
+    folder: &str,
+    version_id: &str,
+) -> Result<InstanceEntry> {
+    single_component(version_id)?;
+    let dir = instance_dir(instances_dir, folder)?;
+    let mut instance = load_instance(&dir)?;
+    instance.version_id = version_id.to_string();
+    validate(&instance)?;
+    write_instance(&dir, &instance)?;
+    Ok(entry_from(folder.to_string(), instance))
+}
+
 fn default_instance(name: String, version_id: String) -> Instance {
     Instance {
         schema: SCHEMA,
@@ -175,6 +244,11 @@ fn default_instance(name: String, version_id: String) -> Instance {
         fullscreen: false,
         width: None,
         height: None,
+        override_window: false,
+        override_memory: false,
+        override_java: false,
+        override_jvm_arguments: false,
+        java_path: None,
     }
 }
 
@@ -189,6 +263,11 @@ fn instance_from_template(name: String, version_id: String, template: &GlobalLau
         fullscreen: template.fullscreen,
         width: template.width,
         height: template.height,
+        override_window: false,
+        override_memory: false,
+        override_java: false,
+        override_jvm_arguments: false,
+        java_path: None,
     }
 }
 
@@ -203,6 +282,49 @@ pub fn instance_launch(instance: &Instance) -> GlobalLaunch {
     }
 }
 
+/// Merges instance overrides with global settings. Global wins where override is off.
+pub fn resolved_launch(instance: &Instance, global: &GlobalLaunch) -> GlobalLaunch {
+    GlobalLaunch {
+        max_memory_mb: if instance.override_memory {
+            instance.max_memory_mb
+        } else {
+            global.max_memory_mb
+        },
+        jvm_arguments: if instance.override_jvm_arguments {
+            instance.jvm_arguments.clone()
+        } else {
+            global.jvm_arguments.clone()
+        },
+        fullscreen: if instance.override_window {
+            instance.fullscreen
+        } else {
+            global.fullscreen
+        },
+        width: if instance.override_window {
+            instance.width
+        } else {
+            global.width
+        },
+        height: if instance.override_window {
+            instance.height
+        } else {
+            global.height
+        },
+    }
+}
+
+/// Custom Java for this instance when override is on and a path is set.
+pub fn resolved_java_path(instance: &Instance) -> Option<PathBuf> {
+    if !instance.override_java {
+        return None;
+    }
+    let path = instance.java_path.as_deref()?.trim();
+    if path.is_empty() {
+        return None;
+    }
+    Some(PathBuf::from(path))
+}
+
 fn entry_from(folder: String, instance: Instance) -> InstanceEntry {
     InstanceEntry {
         folder,
@@ -214,6 +336,11 @@ fn entry_from(folder: String, instance: Instance) -> InstanceEntry {
         fullscreen: instance.fullscreen,
         width: instance.width,
         height: instance.height,
+        override_window: instance.override_window,
+        override_memory: instance.override_memory,
+        override_java: instance.override_java,
+        override_jvm_arguments: instance.override_jvm_arguments,
+        java_path: instance.java_path,
     }
 }
 
@@ -276,6 +403,15 @@ fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn normalize_java_path(path: Option<&str>) -> Option<String> {
+    let path = path?.trim();
+    if path.is_empty() {
+        None
+    } else {
+        Some(path.to_string())
+    }
 }
 
 fn validate(instance: &Instance) -> Result<()> {

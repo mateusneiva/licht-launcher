@@ -15,13 +15,14 @@ export const SECTIONS = [
   {
     id: "instances",
     label: "Instances",
-    description: "Applied to every instance.",
+    description:
+      "Applied to every instance unless that instance customizes the setting.",
     icon: BoxesIcon,
   },
   {
     id: "java",
     label: "Java",
-    description: "Path to each Java used to launch the game.",
+    description: "Java paths and extra JVM arguments for launch.",
     icon: TerminalIcon,
   },
   {

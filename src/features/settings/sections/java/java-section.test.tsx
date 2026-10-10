@@ -261,4 +261,20 @@ describe("JavaSection", () => {
     });
     expect(detect).toBeDisabled();
   });
+
+  it("shows java arguments after the paths", async () => {
+    await renderSettings();
+    fireEvent.click(await screen.findByRole("button", { name: "Java" }));
+
+    expect(screen.getByLabelText("Java arguments")).toHaveAttribute(
+      "placeholder",
+      "-XX:+UseG1GC",
+    );
+    expect(
+      screen.getByText("Extra JVM flags, separated by spaces."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Java paths and extra JVM arguments for launch."),
+    ).toBeInTheDocument();
+  });
 });
