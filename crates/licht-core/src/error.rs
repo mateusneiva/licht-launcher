@@ -34,6 +34,12 @@ pub enum CoreError {
     SettingsConcurrency,
     #[error("cache path is invalid")]
     CachePath,
+    #[error("instance JSON is invalid")]
+    Instance(#[source] serde_json::Error),
+    #[error("instance schema {schema} is not supported")]
+    InstanceSchema { schema: u32 },
+    #[error("instance memory is invalid")]
+    InstanceMemory,
     #[error("Java runtime index JSON is invalid")]
     JavaRuntime(#[source] serde_json::Error),
     #[error("Java runtime was not found for this system")]
