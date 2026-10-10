@@ -1,7 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use licht_core::{CoreError, list_instances, load_instance, parse_instance};
+use licht_core::{
+    CoreError, create_instance, delete_instance, duplicate_instance, list_instances, load_instance,
+    parse_instance, rename_instance,
+};
 
 fn scratch(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("licht-instance-{name}-{}", std::process::id()));
@@ -137,7 +140,7 @@ fn a_minecraft_child_is_not_its_own_instance() {
     let listed = list_instances(&instances).expect("list");
     let ids: Vec<&str> = listed
         .iter()
-        .map(|instance| instance.version_id.as_str())
+        .map(|instance| instance.folder.as_str())
         .collect();
     assert_eq!(ids, vec!["1.20.1", "1.5.2"]);
     assert!(legacy.join("instance.json").is_file());
@@ -147,5 +150,65 @@ fn a_minecraft_child_is_not_its_own_instance() {
             .expect("absent")
             .is_empty()
     );
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn create_rename_duplicate_and_delete_keep_the_folder_stable() {
+    let root = scratch("crud");
+    let instances = root.join("instances");
+
+    let created = create_instance(&instances, " My World ", "1.20.1").expect("create");
+    assert_eq!(created.folder, "My-World");
+    assert_eq!(created.name, "My World");
+    assert_eq!(created.version_id, "1.20.1");
+    assert!(instances.join("My-World").join("instance.json").is_file());
+    assert!(matches!(
+        create_instance(&instances, "My World", "1.20.1"),
+        Err(CoreError::InstanceExists)
+    ));
+    assert!(matches!(
+        create_instance(&instances, "   ", "1.20.1"),
+        Err(CoreError::InstanceName)
+    ));
+
+    let renamed = rename_instance(&instances, "My-World", "Survival").expect("rename");
+    assert_eq!(renamed.folder, "My-World");
+    assert_eq!(renamed.name, "Survival");
+    assert!(instances.join("My-World").is_dir());
+    assert!(!instances.join("Survival").exists());
+
+    fs::create_dir_all(instances.join("My-World").join(".minecraft").join("saves"))
+        .expect("saves dir");
+    fs::write(
+        instances
+            .join("My-World")
+            .join(".minecraft")
+            .join("saves")
+            .join("level.dat"),
+        "world",
+    )
+    .expect("save");
+
+    let copy = duplicate_instance(&instances, "My-World", "Survival copy").expect("duplicate");
+    assert_eq!(copy.folder, "Survival-copy");
+    assert_eq!(copy.name, "Survival copy");
+    assert_eq!(copy.version_id, "1.20.1");
+    assert_eq!(
+        fs::read_to_string(
+            instances
+                .join("Survival-copy")
+                .join(".minecraft")
+                .join("saves")
+                .join("level.dat")
+        )
+        .expect("copied save"),
+        "world"
+    );
+    assert!(instances.join("My-World").is_dir());
+
+    delete_instance(&instances, "Survival-copy").expect("delete");
+    assert!(!instances.join("Survival-copy").exists());
+    assert!(instances.join("My-World").is_dir());
     let _ = fs::remove_dir_all(root);
 }

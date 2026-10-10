@@ -14,6 +14,11 @@ pub fn run() -> anyhow::Result<()> {
     tauri::Builder::default()
         .manage(commands::OperationLock::new())
         .invoke_handler(tauri::generate_handler![
+            commands::list_instances,
+            commands::create_instance,
+            commands::rename_instance,
+            commands::duplicate_instance,
+            commands::delete_instance,
             commands::list_versions,
             commands::install_version,
             commands::launch

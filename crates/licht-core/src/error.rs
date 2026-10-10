@@ -34,6 +34,10 @@ pub enum CoreError {
     InstanceSchema { schema: u32 },
     #[error("instance memory is invalid")]
     InstanceMemory,
+    #[error("instance name is invalid")]
+    InstanceName,
+    #[error("an instance folder already exists")]
+    InstanceExists,
     #[error("Java runtime index JSON is invalid")]
     JavaRuntime(#[source] serde_json::Error),
     #[error("Java runtime was not found for this system")]

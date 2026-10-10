@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use licht_core::{DownloadProgress, GameExit, GameLine, VersionSummary};
+use licht_core::{DownloadProgress, GameExit, GameLine, InstanceEntry, VersionSummary};
 use ts_rs::TS;
 
 fn generated_dir() -> PathBuf {
@@ -35,6 +35,7 @@ fn the_committed_bindings_match_ts_rs() {
     std::fs::create_dir_all(&actual).expect("temp bindings");
     let config = ts_rs::Config::new().with_out_dir(&actual);
     VersionSummary::export_all(&config).expect("version summary");
+    InstanceEntry::export_all(&config).expect("instance entry");
     DownloadProgress::export_all(&config).expect("progress");
     GameLine::export_all(&config).expect("game line");
     GameExit::export_all(&config).expect("game exit");
