@@ -4,7 +4,13 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -76,6 +82,9 @@ describe("VersionsPage", () => {
 
   it("lists releases and installs a version that is not on disk", async () => {
     invoke.mockImplementation((command: string) => {
+      if (command === "list_instances") {
+        return Promise.resolve([]);
+      }
       if (command === "list_versions") {
         return Promise.resolve([
           { id: "1.20.1", versionType: "release", installed: false },
@@ -111,6 +120,10 @@ describe("VersionsPage", () => {
       screen.queryByRole("link", { name: "About" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("1.5.2")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Play 1.5.2" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("No instances yet.")).toBeInTheDocument();
     expect(screen.queryByText("24w14a")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("tab", { name: "Release" }),
@@ -161,6 +174,9 @@ describe("VersionsPage", () => {
   it("shows install progress on the version row until the install finishes", async () => {
     let finishInstall: (java: string) => void = () => {};
     invoke.mockImplementation((command: string) => {
+      if (command === "list_instances") {
+        return Promise.resolve([]);
+      }
       if (command === "list_versions") {
         return Promise.resolve([
           { id: "1.20.1", versionType: "release", installed: false },
@@ -215,6 +231,20 @@ describe("VersionsPage", () => {
 
   it("shows snapshots on that filter and plays an installed version", async () => {
     invoke.mockImplementation((command: string) => {
+      if (command === "list_instances") {
+        return Promise.resolve([
+          {
+            folder: "1.5.2",
+            name: "Classic",
+            versionId: "1.5.2",
+            minMemoryMb: 512,
+            maxMemoryMb: 2048,
+            jvmArguments: [],
+            width: null,
+            height: null,
+          },
+        ]);
+      }
       if (command === "list_versions") {
         return Promise.resolve([
           { id: "1.5.2", versionType: "release", installed: true },
@@ -225,10 +255,16 @@ describe("VersionsPage", () => {
     });
 
     await renderAt("/");
-    await screen.findByText("1.5.2");
+    const versionList = await screen.findByRole("list", { name: "Versions" });
+    expect(within(versionList).getByText("1.5.2")).toBeInTheDocument();
+    expect(screen.getByText("Classic")).toBeInTheDocument();
     await selectType("Snapshot");
     expect(await screen.findByText("24w14a")).toBeInTheDocument();
-    expect(screen.queryByText("1.5.2")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: "Versions" })).queryByText(
+        "1.5.2",
+      ),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Installed" }),
     ).not.toBeInTheDocument();
@@ -240,7 +276,9 @@ describe("VersionsPage", () => {
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "Mateus" },
     });
-    fireEvent.click(await screen.findByRole("button", { name: "Play 1.5.2" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Play Classic" }),
+    );
 
     listeners.get("game-log")?.({
       payload: {
@@ -259,8 +297,49 @@ describe("VersionsPage", () => {
     });
   });
 
+  it("creates an instance from an installed version", async () => {
+    invoke.mockImplementation((command: string) => {
+      if (command === "list_instances") {
+        return Promise.resolve([]);
+      }
+      if (command === "list_versions") {
+        return Promise.resolve([
+          { id: "1.20.1", versionType: "release", installed: true },
+        ]);
+      }
+      return Promise.resolve({
+        folder: "Survival",
+        name: "Survival",
+        versionId: "1.20.1",
+        minMemoryMb: 512,
+        maxMemoryMb: 2048,
+        jvmArguments: [],
+        width: null,
+        height: null,
+      });
+    });
+
+    await renderAt("/");
+    fireEvent.click(await screen.findByRole("button", { name: "Create" }));
+    fireEvent.change(await screen.findByLabelText("Name"), {
+      target: { value: "Survival" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create instance" }));
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("create_instance", {
+        name: "Survival",
+        versionId: "1.20.1",
+      });
+    });
+  });
+
   it("shows a network toast when the list fails", async () => {
-    invoke.mockRejectedValue("HTTP request failed");
+    invoke.mockImplementation((command: string) => {
+      if (command === "list_instances") {
+        return Promise.resolve([]);
+      }
+      return Promise.reject(new Error("HTTP request failed"));
+    });
     await renderAt("/");
     expect(
       await screen.findByText(

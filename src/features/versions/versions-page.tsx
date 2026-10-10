@@ -6,6 +6,14 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,7 +25,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { installVersion, launchVersion, listVersions } from "@/lib/commands";
+import {
+  createInstance,
+  deleteInstance,
+  duplicateInstance,
+  installVersion,
+  launchVersion,
+  listInstances,
+  listVersions,
+  renameInstance,
+} from "@/lib/commands";
 import { friendlyError, messageOf } from "@/lib/errors";
 import type { DownloadProgress } from "@/lib/generated/DownloadProgress";
 import type { GameLine } from "@/lib/generated/GameLine";
@@ -37,6 +54,12 @@ const TYPES = [
 ] as const;
 
 type ViewId = (typeof VIEWS)[number]["id"];
+
+type InstanceAction =
+  | { kind: "create" }
+  | { kind: "rename"; folder: string; name: string }
+  | { kind: "duplicate"; folder: string; name: string }
+  | { kind: "delete"; folder: string; name: string };
 
 type TypeId = (typeof TYPES)[number]["id"];
 
@@ -104,6 +127,9 @@ export function VersionsPage() {
   const [username, setUsername] = useState("Steve");
   const [view, setView] = useState<ViewId>("versions");
   const [typeId, setTypeId] = useState<TypeId>("release");
+  const [action, setAction] = useState<InstanceAction | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftVersion, setDraftVersion] = useState("");
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [lines, setLines] = useState<Array<GameLine & { id: number }>>([]);
   const nextLine = useRef(0);
@@ -115,6 +141,12 @@ export function VersionsPage() {
     retry: false,
   });
 
+  const instances = useQuery({
+    queryKey: ["instances"],
+    queryFn: listInstances,
+    retry: false,
+  });
+
   const install = useMutation({
     mutationFn: installVersion,
     onSuccess: async () => {
@@ -123,6 +155,46 @@ export function VersionsPage() {
     },
     onError: (error: unknown) => {
       setProgress(null);
+      toast.error(friendlyError(messageOf(error)));
+    },
+  });
+
+  const refreshInstances = async () => {
+    setAction(null);
+    await queryClient.invalidateQueries({ queryKey: ["instances"] });
+  };
+
+  const create = useMutation({
+    mutationFn: (input: { name: string; versionId: string }) =>
+      createInstance(input.name, input.versionId),
+    onSuccess: refreshInstances,
+    onError: (error: unknown) => {
+      toast.error(friendlyError(messageOf(error)));
+    },
+  });
+
+  const rename = useMutation({
+    mutationFn: (input: { folder: string; name: string }) =>
+      renameInstance(input.folder, input.name),
+    onSuccess: refreshInstances,
+    onError: (error: unknown) => {
+      toast.error(friendlyError(messageOf(error)));
+    },
+  });
+
+  const duplicate = useMutation({
+    mutationFn: (input: { folder: string; name: string }) =>
+      duplicateInstance(input.folder, input.name),
+    onSuccess: refreshInstances,
+    onError: (error: unknown) => {
+      toast.error(friendlyError(messageOf(error)));
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: deleteInstance,
+    onSuccess: refreshInstances,
+    onError: (error: unknown) => {
       toast.error(friendlyError(messageOf(error)));
     },
   });
@@ -143,6 +215,12 @@ export function VersionsPage() {
       toast.error(friendlyError(messageOf(versions.error)));
     }
   }, [versions.error]);
+
+  useEffect(() => {
+    if (instances.error) {
+      toast.error(friendlyError(messageOf(instances.error)));
+    }
+  }, [instances.error]);
 
   useEffect(() => {
     let stop = false;
@@ -182,8 +260,23 @@ export function VersionsPage() {
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
   });
-  const busy = install.isPending || play.isPending;
+  const busy =
+    install.isPending ||
+    play.isPending ||
+    create.isPending ||
+    rename.isPending ||
+    duplicate.isPending ||
+    remove.isPending;
   const nameMissing = username.trim() === "";
+  const installedVersions = (versions.data ?? []).filter(
+    (version) => version.installed,
+  );
+
+  function openCreate() {
+    setDraftName("");
+    setDraftVersion(installedVersions[0]?.id ?? "");
+    setAction({ kind: "create" });
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
@@ -229,6 +322,233 @@ export function VersionsPage() {
           ))}
         </TabsList>
       </Tabs>
+      {view === "versions" ? (
+        <section aria-label="Instances" className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-medium">Instances</h2>
+            <Button size="sm" disabled={busy} onClick={openCreate}>
+              Create
+            </Button>
+          </div>
+          {instances.isPending ? (
+            <p className="text-sm text-muted-foreground">
+              Loading instances...
+            </p>
+          ) : null}
+          {instances.isSuccess && instances.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No instances yet.</p>
+          ) : null}
+          {instances.isSuccess && instances.data.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {instances.data.map((instance) => (
+                <li
+                  key={instance.folder}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <span className="min-w-0 truncate text-sm">
+                    {instance.name}{" "}
+                    <span className="text-muted-foreground">
+                      {instance.versionId}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      disabled={busy || nameMissing}
+                      onClick={() => {
+                        play.mutate(instance.versionId);
+                      }}
+                    >
+                      Play {instance.name}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setDraftName(instance.name);
+                        setAction({
+                          kind: "rename",
+                          folder: instance.folder,
+                          name: instance.name,
+                        });
+                      }}
+                    >
+                      Rename {instance.name}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setDraftName("");
+                        setAction({
+                          kind: "duplicate",
+                          folder: instance.folder,
+                          name: instance.name,
+                        });
+                      }}
+                    >
+                      Duplicate {instance.name}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setAction({
+                          kind: "delete",
+                          folder: instance.folder,
+                          name: instance.name,
+                        });
+                      }}
+                    >
+                      Delete {instance.name}
+                    </Button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+      <Dialog
+        open={action !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAction(null);
+          }
+        }}
+      >
+        <DialogContent>
+          {action?.kind === "create" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Create instance</DialogTitle>
+                <DialogDescription>
+                  Choose a name and an installed version.
+                </DialogDescription>
+              </DialogHeader>
+              <label
+                className="flex flex-col gap-1 text-sm"
+                htmlFor="instance-name"
+              >
+                Name
+                <Input
+                  id="instance-name"
+                  value={draftName}
+                  onChange={(event) => {
+                    setDraftName(event.target.value);
+                  }}
+                />
+              </label>
+              {installedVersions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Install a version first.
+                </p>
+              ) : (
+                <Select
+                  value={draftVersion}
+                  onValueChange={(value) => {
+                    setDraftVersion(value);
+                  }}
+                >
+                  <SelectTrigger aria-label="Version">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {installedVersions.map((version) => (
+                      <SelectItem key={version.id} value={version.id}>
+                        {version.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <DialogFooter>
+                <Button
+                  disabled={
+                    busy || draftName.trim() === "" || draftVersion === ""
+                  }
+                  onClick={() => {
+                    create.mutate({ name: draftName, versionId: draftVersion });
+                  }}
+                >
+                  Create instance
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+          {action?.kind === "rename" || action?.kind === "duplicate" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {action.kind === "rename" ? "Rename" : "Duplicate"}{" "}
+                  {action.name}
+                </DialogTitle>
+                <DialogDescription>
+                  {action.kind === "rename"
+                    ? "The folder stays the same."
+                    : "Saves are copied into the new instance."}
+                </DialogDescription>
+              </DialogHeader>
+              <label
+                className="flex flex-col gap-1 text-sm"
+                htmlFor="instance-name"
+              >
+                Name
+                <Input
+                  id="instance-name"
+                  value={draftName}
+                  onChange={(event) => {
+                    setDraftName(event.target.value);
+                  }}
+                />
+              </label>
+              <DialogFooter>
+                <Button
+                  disabled={busy || draftName.trim() === ""}
+                  onClick={() => {
+                    if (action.kind === "rename") {
+                      rename.mutate({ folder: action.folder, name: draftName });
+                    } else {
+                      duplicate.mutate({
+                        folder: action.folder,
+                        name: draftName,
+                      });
+                    }
+                  }}
+                >
+                  {action.kind === "rename"
+                    ? "Save name"
+                    : "Duplicate instance"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+          {action?.kind === "delete" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Delete {action.name}?</DialogTitle>
+                <DialogDescription>
+                  Saves in this instance will be removed.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() => {
+                    remove.mutate(action.folder);
+                  }}
+                >
+                  Delete instance
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
       {view === "console" ? (
         <section aria-label="Game log" className="flex flex-col gap-1">
           <h2 className="text-sm font-medium">Game log</h2>
@@ -336,17 +656,7 @@ export function VersionsPage() {
                         />
                       </div>
                     ) : null}
-                    {version.installed ? (
-                      <Button
-                        size="sm"
-                        disabled={busy || nameMissing}
-                        onClick={() => {
-                          play.mutate(version.id);
-                        }}
-                      >
-                        Play {version.id}
-                      </Button>
-                    ) : (
+                    {version.installed ? null : (
                       <Button
                         size="sm"
                         variant="secondary"
