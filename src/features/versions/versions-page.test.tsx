@@ -297,6 +297,39 @@ describe("VersionsPage", () => {
     });
   });
 
+  it("opens the instance folder", async () => {
+    invoke.mockImplementation((command: string) => {
+      if (command === "list_instances") {
+        return Promise.resolve([
+          {
+            folder: "1.5.2",
+            name: "Classic",
+            versionId: "1.5.2",
+            minMemoryMb: 512,
+            maxMemoryMb: 2048,
+            jvmArguments: [],
+            width: null,
+            height: null,
+          },
+        ]);
+      }
+      if (command === "list_versions") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve(undefined);
+    });
+
+    await renderAt("/");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Abrir Pasta" }),
+    );
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("open_instance_folder", {
+        folder: "1.5.2",
+      });
+    });
+  });
+
   it("creates an instance from an installed version", async () => {
     invoke.mockImplementation((command: string) => {
       if (command === "list_instances") {
