@@ -8,9 +8,9 @@ use tokio::sync::mpsc;
 use crate::download::DownloadProgress;
 use crate::natives::{classifier_matches, native_classifier};
 use crate::{
-    ADOPTIUM_API, AssetIndexFile, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadTask,
-    JavaChoice, LaunchEnvironment, Result, SharedCache, Version, applicable_libraries,
-    download_all, install_java, install_temurin, parse_asset_index, parse_version,
+    ADOPTIUM_API, AssetIndexFile, CoreError, DEFAULT_RETRY, DownloadTask, JavaChoice,
+    LaunchEnvironment, Result, SharedCache, Version, applicable_libraries, download_all,
+    install_java, install_temurin, load_settings, parse_asset_index, parse_version,
     required_java_major,
 };
 
@@ -48,7 +48,7 @@ pub async fn install_version(
     download_all(
         client,
         &pending,
-        DEFAULT_CONCURRENCY,
+        load_settings(cache)?.download_concurrency as usize,
         DEFAULT_RETRY,
         progress,
     )

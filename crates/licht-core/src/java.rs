@@ -10,8 +10,8 @@ use sha2::Sha256;
 use tokio::sync::mpsc;
 
 use crate::{
-    Arch, CoreError, DEFAULT_CONCURRENCY, DEFAULT_RETRY, DownloadProgress, DownloadTask,
-    LaunchEnvironment, OsName, Result, SharedCache, Version, download_all,
+    Arch, CoreError, DEFAULT_RETRY, DownloadProgress, DownloadTask, LaunchEnvironment, OsName,
+    Result, SharedCache, Version, download_all, load_settings,
 };
 
 pub const JAVA_RUNTIME_INDEX_URL: &str = "https://piston-meta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
@@ -321,7 +321,7 @@ pub async fn install_java(
     download_all(
         client,
         &downloads,
-        DEFAULT_CONCURRENCY,
+        load_settings(cache)?.download_concurrency as usize,
         DEFAULT_RETRY,
         progress,
     )

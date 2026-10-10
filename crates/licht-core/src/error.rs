@@ -26,6 +26,12 @@ pub enum CoreError {
     DownloadConcurrency,
     #[error("could not resolve the Licht data directory")]
     DataDirectory,
+    #[error("settings JSON is invalid")]
+    Settings(#[source] serde_json::Error),
+    #[error("settings schema {schema} is not supported")]
+    SettingsSchema { schema: u32 },
+    #[error("download concurrency must be from 1 to 16")]
+    SettingsConcurrency,
     #[error("cache path is invalid")]
     CachePath,
     #[error("Java runtime index JSON is invalid")]

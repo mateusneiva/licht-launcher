@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
 use licht_core::{
-    ASSET_OBJECT_BASE, Arch, CoreError, GameExit, GameInstall, LaunchEnvironment, OsName,
-    SharedCache, VersionSummary, fetch_version_manifest, install_game, installed_java, log_codec,
-    offline_account, parse_version, prepare_offline_launch, required_java_major, run_game,
-    version_summaries,
+    ASSET_OBJECT_BASE, Arch, CoreError, GameExit, GameInstall, LaunchEnvironment, OsName, Settings,
+    SharedCache, VersionSummary, fetch_version_manifest, install_game, installed_java,
+    load_settings, log_codec, offline_account, parse_version, prepare_offline_launch,
+    required_java_major, run_game, save_settings, version_summaries,
 };
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::{Mutex, MutexGuard, mpsc};
@@ -52,6 +52,18 @@ fn host_environment() -> Result<LaunchEnvironment, CoreError> {
         os_version: String::new(),
         features: BTreeMap::new(),
     })
+}
+
+#[tauri::command]
+pub fn get_settings() -> Result<Settings, String> {
+    let cache = SharedCache::system().map_err(failure)?;
+    load_settings(&cache).map_err(failure)
+}
+
+#[tauri::command]
+pub fn set_download_concurrency(download_concurrency: u32) -> Result<Settings, String> {
+    let cache = SharedCache::system().map_err(failure)?;
+    save_settings(&cache, download_concurrency).map_err(failure)
 }
 
 #[tauri::command]
