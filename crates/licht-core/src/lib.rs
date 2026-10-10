@@ -27,7 +27,10 @@ pub use install::{
     ASSET_OBJECT_BASE, GameInstall, InstallArgs, InstallPlan, install_game, install_version,
     parse_install_args,
 };
-pub use instance::{Instance, list_instances, load_instance, parse_instance};
+pub use instance::{
+    Instance, InstanceEntry, create_instance, delete_instance, duplicate_instance, list_instances,
+    load_instance, parse_instance, rename_instance,
+};
 pub use java::{
     ADOPTIUM_API, JAVA_RUNTIME_INDEX_URL, JavaChoice, JavaRuntimeBuild, JavaRuntimeEntry,
     JavaRuntimeIndex, JavaRuntimeManifest, JavaRuntimeManifestRef, default_java_roots,

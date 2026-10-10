@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
 use licht_core::{
-    ASSET_OBJECT_BASE, Arch, CoreError, GameExit, GameInstall, LaunchEnvironment, OsName,
-    SharedCache, VersionSummary, fetch_version_manifest, install_game, installed_java, log_codec,
-    offline_account, parse_version, prepare_offline_launch, required_java_major, run_game,
-    version_summaries,
+    ASSET_OBJECT_BASE, Arch, CoreError, GameExit, GameInstall, InstanceEntry, LaunchEnvironment,
+    OsName, SharedCache, VersionSummary, fetch_version_manifest, install_game, installed_java,
+    log_codec, offline_account, parse_version, prepare_offline_launch, required_java_major,
+    run_game, version_summaries,
 };
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::{Mutex, MutexGuard, mpsc};
@@ -52,6 +52,40 @@ fn host_environment() -> Result<LaunchEnvironment, CoreError> {
         os_version: String::new(),
         features: BTreeMap::new(),
     })
+}
+
+fn instances_root() -> Result<std::path::PathBuf, CoreError> {
+    SharedCache::system()?.instances_dir()
+}
+
+#[tauri::command]
+pub fn list_instances() -> Result<Vec<InstanceEntry>, String> {
+    let root = instances_root().map_err(failure)?;
+    licht_core::list_instances(&root).map_err(failure)
+}
+
+#[tauri::command]
+pub fn create_instance(name: String, version_id: String) -> Result<InstanceEntry, String> {
+    let root = instances_root().map_err(failure)?;
+    licht_core::create_instance(&root, &name, &version_id).map_err(failure)
+}
+
+#[tauri::command]
+pub fn rename_instance(folder: String, name: String) -> Result<InstanceEntry, String> {
+    let root = instances_root().map_err(failure)?;
+    licht_core::rename_instance(&root, &folder, &name).map_err(failure)
+}
+
+#[tauri::command]
+pub fn duplicate_instance(folder: String, name: String) -> Result<InstanceEntry, String> {
+    let root = instances_root().map_err(failure)?;
+    licht_core::duplicate_instance(&root, &folder, &name).map_err(failure)
+}
+
+#[tauri::command]
+pub fn delete_instance(folder: String) -> Result<(), String> {
+    let root = instances_root().map_err(failure)?;
+    licht_core::delete_instance(&root, &folder).map_err(failure)
 }
 
 #[tauri::command]
