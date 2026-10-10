@@ -74,12 +74,17 @@ impl SharedCache {
             .join(single_component(version_id)?))
     }
 
+    /// `<launcher>/instances`, the sibling of this data directory.
+    pub fn instances_dir(&self) -> Result<PathBuf> {
+        let launcher = self.root.parent().ok_or(CoreError::CachePath)?;
+        Ok(launcher.join("instances"))
+    }
+
     /// `<launcher>/instances/<id>`, the sibling of this data directory.
     ///
     /// LaunchWrapper versions keep saves in `<id>/.minecraft`. Other versions use `<id>` itself.
     pub fn instance_dir(&self, id: &str) -> Result<PathBuf> {
-        let launcher = self.root.parent().ok_or(CoreError::CachePath)?;
-        Ok(launcher.join("instances").join(single_component(id)?))
+        Ok(self.instances_dir()?.join(single_component(id)?))
     }
 
     pub fn library(&self, artifact_path: &str) -> Result<PathBuf> {
