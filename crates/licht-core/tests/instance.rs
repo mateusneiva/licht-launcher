@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 use licht_core::{
     CoreError, GlobalLaunch, InstanceSettings, create_instance, delete_instance,
     duplicate_instance, instance_launch, list_instances, load_instance, parse_instance,
-    rename_instance, resolved_java_path, resolved_launch, update_instance,
-    update_instance_version,
+    rename_instance, resolved_java_path, resolved_launch, update_instance, update_instance_version,
 };
 
 fn scratch(name: &str) -> PathBuf {
@@ -412,8 +411,7 @@ fn update_instance_version_changes_only_the_game_version() {
     let instances = root.join("instances");
     let created =
         create_instance(&instances, "My World", "1.20.1", &plain_template()).expect("create");
-    let updated =
-        update_instance_version(&instances, &created.folder, "1.21.1").expect("version");
+    let updated = update_instance_version(&instances, &created.folder, "1.21.1").expect("version");
     assert_eq!(updated.folder, "My-World");
     assert_eq!(updated.name, "My World");
     assert_eq!(updated.version_id, "1.21.1");
