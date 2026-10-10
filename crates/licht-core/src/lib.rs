@@ -10,6 +10,7 @@ mod launch;
 mod natives;
 mod offline;
 mod run;
+mod settings;
 mod version;
 mod version_manifest;
 
@@ -41,6 +42,7 @@ pub use offline::{
     prepare_offline_launch,
 };
 pub use run::{GameExit, GameLine, LogCodec, OutputStream, log_codec, run_game};
+pub use settings::{Settings, load_settings, save_settings};
 pub use version::{
     Arch, Argument, ArgumentValue, Artifact, AssetIndex, Download, GameArguments, JavaVersion,
     LaunchEnvironment, Library, LibraryDownloads, LibraryExtract, OsName, OsRule, Rule, RuleAction,

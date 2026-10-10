@@ -98,6 +98,10 @@ describe("VersionsPage", () => {
     expect(screen.getByRole("tab", { name: "Console" })).toBeInTheDocument();
     expect(await screen.findByText("1.20.1")).toBeInTheDocument();
     expect(screen.getByText("0.1.0 · Lilie")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
     expect(
       screen.getByText(
         "Unofficial, not affiliated with Mojang Studios or Microsoft.",

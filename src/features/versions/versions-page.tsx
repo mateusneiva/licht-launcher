@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
@@ -189,7 +190,15 @@ export function VersionsPage() {
       <div className="flex flex-col gap-1">
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-xl font-semibold">Licht Launcher</h1>
-          <p className="text-xs text-muted-foreground">0.1.0 · Lilie</p>
+          <div className="flex items-baseline gap-3">
+            <Link
+              to="/settings"
+              className="text-sm text-primary underline-offset-4 hover:underline"
+            >
+              Settings
+            </Link>
+            <p className="text-xs text-muted-foreground">0.1.0 · Lilie</p>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           Unofficial, not affiliated with Mojang Studios or Microsoft.

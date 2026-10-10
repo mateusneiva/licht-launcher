@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use licht_core::{DownloadProgress, GameExit, GameLine, VersionSummary};
+use licht_core::{DownloadProgress, GameExit, GameLine, Settings, VersionSummary};
 use ts_rs::TS;
 
 fn generated_dir() -> PathBuf {
@@ -38,6 +38,7 @@ fn the_committed_bindings_match_ts_rs() {
     DownloadProgress::export_all(&config).expect("progress");
     GameLine::export_all(&config).expect("game line");
     GameExit::export_all(&config).expect("game exit");
+    Settings::export_all(&config).expect("settings");
 
     let expected = generated_dir();
     let expected_names = file_names(&expected);
